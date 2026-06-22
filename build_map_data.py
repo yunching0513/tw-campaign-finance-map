@@ -250,6 +250,7 @@ def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
                 if not e:
                     e = {"name": dname or ("匿名" if dt == "匿名" else "（未具名）"),
                          "type": dt,
+                         "id": did if (did.isdigit() and len(did) == 8) else "",
                          "ind": classify_industry(dname)[0] if dt == "營利事業" else "",
                          "amt": 0.0}
                     c["donors"][dk] = e
@@ -265,8 +266,9 @@ def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
                     "n_donors": len(c["donors"]),
                     "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
                     "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
-                    "top_donors": [{"name": e["name"], "type": e["type"], "ind": e["ind"],
-                                    "amount": round(e["amt"])} for e in donors]}
+                    "top_donors": [{"name": e["name"], "type": e["type"], "id": e["id"],
+                                    "ind": e["ind"], "amount": round(e["amt"])}
+                                   for e in donors]}
     return out
 
 

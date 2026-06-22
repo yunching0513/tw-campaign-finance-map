@@ -211,6 +211,9 @@
   .cand-stats{display:flex; gap:52px; margin:8px 0 2px}
   .dtag{font-size:10px; letter-spacing:.04em; padding:2px 9px; border-radius:999px;
     margin-left:9px; white-space:nowrap; vertical-align:middle}
+  .ext{display:inline-block; margin-left:7px; color:var(--accent); text-decoration:none;
+    font-size:12px; opacity:.75; vertical-align:middle}
+  .ext:hover{opacity:1; color:var(--shu-solid)}
 
   @media(max-width:880px){
     .wrap{padding:36px 20px 60px}
@@ -316,6 +319,9 @@ const companyIndex = new Map(companies.map(c=>[c.key,c]));
 let view = 'map', indFilter = 'land';    // 'map' | 'donor' ；產業：'land' | 'all'
 const CAND = window.CAND_DATA || {};     // 候選人金主結構（姓名|職位|選區|年）
 const IND_COLORS = {"建商地產":"#A6392C","營造工程":"#b8a98c","其他":"#C9CFD4"};
+const extLink=(url,t)=>`<a class="ext" href="${url}" target="_blank" rel="noopener" title="${t}" onclick="event.stopPropagation()">↗</a>`;
+const companyExt=id=> id?extLink(`https://company.g0v.ronny.tw/id/${id}`,'查看公司登記資料（董監事・營業項目）'):'';
+const candExt=name=>extLink(`https://www.google.com/search?q=${encodeURIComponent(name+' 政治獻金')}`,'搜尋更多資訊');
 
 function layerOf(c){ return (c.layers && c.layers[office]) ||
   {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
@@ -409,7 +415,7 @@ function corpHTML(list){
     const linked = companyIndex.has(e.key);
     return `<div class="cand donor${linked?' linked':''}"${linked?` data-corpkey="${e.key}"`:''}>
      <span class="rank">${i+1}</span>
-     <span class="nm">${e.name||'（未具名公司）'}${e.id?`<span class="id">統編 ${e.id}</span>`:''}
+     <span class="nm">${e.name||'（未具名公司）'}${e.id?`<span class="id">統編 ${e.id}</span>`:''}${companyExt(e.id)}
        <span class="to">→ ${e.to&&e.to.length?e.to[0].name:'—'}${e.n_recip>1?` 等 ${e.n_recip} 位候選人`:''}</span></span>
      <span class="amt">${fmtNT(e.total)}</span></div>`;
   }).join('');
@@ -494,7 +500,7 @@ function companyCard(c, i){
   return `<div class="company" data-key="${c.key}">
      <div class="company-hd">
        <span class="rank">${i+1}</span>
-       <span class="cname">${c.name||'（未具名）'}${tag}${c.id?`<span class="id">統編 ${c.id}</span>`:''}</span>
+       <span class="cname">${c.name||'（未具名）'}${tag}${c.id?`<span class="id">統編 ${c.id}</span>`:''}${companyExt(c.id)}</span>
        <span class="cmeta">捐 ${c.n_recip} 位候選人<b>${fmtNT(c.total)}</b></span>
        <span class="chev">▸</span>
      </div>
@@ -576,11 +582,11 @@ function openCandidate(key){
   }else{
     const donors=d.top_donors.map((x,i)=>`<div class="cand">
        <span class="rank">${i+1}</span>
-       <span class="nm">${x.name}${donorTag(x)}</span>
+       <span class="nm">${x.name}${donorTag(x)}${x.type==='營利事業'?companyExt(x.id):''}</span>
        <span class="amt">${fmtNT(x.amount)}</span></div>`).join('');
     card.innerHTML=`<button class="modal-x" data-close>×</button>
       <div class="kicker">Candidate / 候選人</div>
-      <h2>${d.name}</h2>
+      <h2>${d.name}${candExt(d.name)}</h2>
       <div class="sub">${d.office} · ${d.district} · ${d.year} 年</div>
       <div class="cand-stats">
         <div><div class="biglabel">募得總額 · raised</div><div class="big">${fmtNT(d.total)}</div></div>
