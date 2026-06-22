@@ -297,8 +297,9 @@
   <p class="eyebrow">金錢的地理學<span class="en">Follow the Money · Taiwan</span></p>
   <h1>政治獻金與牠們的產地</h1>
   <p class="lede">每一筆政治獻金，都從某個地方流向某位候選人。這張地圖以縣市為單位，
-  呈現各地候選人申報的政治獻金<b>收入規模</b>與<b>來源組成</b>。可切換職位層級——
-  <b>縣市長、議員、鄉鎮市長、村里長（2022 九合一）</b>與<b>立法委員（2024）</b>。</p>
+  呈現各地候選人申報的政治獻金<b>收入規模</b>與<b>來源組成</b>。可切換<b>職位</b>與<b>年度</b>——
+  縣市長／議員／鄉鎮市長／村里長（<b>2018、2022</b> 九合一）、立法委員（<b>2020、2024</b>）；
+  總統及更早年度見各分頁。</p>
 
   <div class="viewtabs" id="viewTabs">
     <button data-v="map" class="on">地圖</button>
@@ -317,6 +318,8 @@
     <div class="topbar">
       <span class="mt">職位</span>
       <div class="toggle" id="officeToggle"></div>
+      <span class="mt">年度</span>
+      <div class="toggle" id="yearToggle"></div>
       <span class="mt" style="margin-left:8px">指標</span>
       <div class="toggle" id="metricToggle">
         <button data-m="total" class="on">捐贈總額</button>
@@ -405,7 +408,8 @@
     <b>資料來源</b>：監察院政治獻金公開查閱平臺（ardata.cy.gov.tw），經本專案
     <code>ardata_scraper.py</code> 下載並正規化。本圖為<b>視覺化雛形</b>。<br>
     <b>口徑</b>：金額為各候選人申報之「捐贈收入」明細加總，依候選人登記之選舉區（縣市）歸戶；
-    立委、議員之選舉區僅到縣市層級。職位層級中立法委員為 2024 年，其餘為 2022 九合一。
+    立委、議員之選舉區僅到縣市層級。涵蓋四屆：2018／2022 九合一（縣市長、議員、鄉鎮市長、村里長）、
+    2020／2024 立委與總統；2014／2016 修法前平臺資料極少（僅總統等少量）。
     已去除完全重複列以減輕更正／補申報之重複計算；立委不分區、原住民計入全國但不歸於縣市。<br>
     <b>政黨／產業／連結</b>：候選人政黨整理自中選會資料（g0v <code>kiang/db.cec.gov.tw</code>），
     以「姓名＋縣市」比對 2022 各職位與 2024 區域立委；部分擬參選人未對應到候選人（標為未標示）。
@@ -436,8 +440,11 @@ const D = window.MAP_DATA;
 if(!D){document.getElementById('panel').innerHTML='<p>找不到 map_data.js，請先執行 build_map_data.py</p>';}
 
 let metric = 'total';
-const offices = D.meta.offices;          // [{key,label,year_ad,types}]
-let office = offices[0].key;             // 預設第一個職位（縣市長）
+const offices = D.meta.offices;          // [{key,label,years:[...]}]
+let office = offices[0].key;             // 'mayor' / 'council' / ...
+let year = offices[0].years[offices[0].years.length-1];  // 預設該職位最新年
+const curOffice = ()=>offices.find(o=>o.key===office)||offices[0];
+const curKey = ()=>`${office}_${year}`;  // 對應 counties[].layers / national 的鍵
 const counties = D.counties;
 const companies = D.companies || [];     // 跨選區企業金主（捐 2 位以上候選人）
 const companyIndex = new Map(companies.map(c=>[c.key,c]));
@@ -460,8 +467,8 @@ const PARTY_COLORS={"民進黨":"#3A7D44","國民黨":"#2B5C9E","民眾黨":"#1E
 const pColor=p=>PARTY_COLORS[p]||PARTY_COLORS['其他'];
 const pPill=p=>p?`<span class="ptag" style="background:${pColor(p)}">${p}</span>`:'';
 const pDot=p=>p?`<span class="pdot" style="background:${pColor(p)}" title="${p}"></span>`:'';
-function partySummaryHTML(officeLabel){
-  const arr=(D.party_summary&&D.party_summary[officeLabel])||[];
+function partySummaryHTML(scopeKey){
+  const arr=(D.party_summary&&D.party_summary[scopeKey])||[];
   const list=arr.filter(s=>s.total>0).slice(0,7);
   if(!list.length) return '';
   const rows=list.map(s=>{
@@ -473,7 +480,7 @@ function partySummaryHTML(officeLabel){
   return `<div class="section-t">各黨募款 <span class="en">by party</span></div>${rows}`;
 }
 
-function layerOf(c){ return (c.layers && c.layers[office]) ||
+function layerOf(c){ return (c.layers && c.layers[curKey()]) ||
   {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
 function corpRatio(c){ const L=layerOf(c);
   return L.total? (L.by_type["營利事業"]||0)/L.total : 0; }
@@ -571,37 +578,52 @@ function corpHTML(list){
   }).join('');
 }
 function render(c){
-  const off = offices.find(o=>o.key===office);
+  const off = curOffice();
   const isNat = !c;
-  const L = isNat ? D.national[office] : layerOf(c);
+  const L = isNat ? (D.national[curKey()]||{total:0,by_type:{},txn:0,candidate_count:0,top_corp:[]}) : layerOf(c);
   const name = isNat ? '全臺灣' : c.name;
   panel.innerHTML = `
     <div class="kicker">${isNat?'National Overview':'County / 縣市'}</div>
     <h2>${name}</h2>
-    <div class="sub">${off.label} · ${off.year_ad} 年 · ${isNat?'全國合計':'候選人 '+fmtInt(L.candidate_count)+' 人 · 明細 '+fmtInt(L.txn)+' 筆'}</div>
+    <div class="sub">${off.label} · ${year} 年 · ${isNat?'全國合計':'候選人 '+fmtInt(L.candidate_count)+' 人 · 明細 '+fmtInt(L.txn)+' 筆'}</div>
     <div class="biglabel">捐贈收入總額 · Total Raised</div>
     <div class="big">${fmtNT(L.total)}</div>
     <div class="section-t">捐贈來源組成 <span class="en">by source</span></div>
     ${stackHTML(L.by_type,L.total)}
-    ${ isNat ? partySummaryHTML(off.label) : '' }
-    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top, off.label, c.name, off.year_ad)}` : '' }
+    ${ isNat ? partySummaryHTML(off.label+'·'+year) : '' }
+    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top, off.label, c.name, year)}` : '' }
     <div class="section-t">主要企業金主 <span class="en">top corporate donors</span></div>
     ${corpHTML(L.top_corp)}
     <p class="hint">${ c ? '「→」為該企業主要捐贈對象；點其他縣市切換，點空白處回全國總覽。'
-        : '此為全國「'+off.label+'」企業金主排行；點地圖縣市可看各地企業金主。上方可切換職位與指標。' }</p>
+        : '此為全國「'+off.label+' '+year+'」企業金主排行；點地圖縣市可看各地企業金主。上方可切換職位／年度／指標。' }</p>
   `;
 }
 
-// 職位層級切換
+// 職位 + 年度切換
 const offToggle=document.getElementById('officeToggle');
+const yearToggle=document.getElementById('yearToggle');
 offToggle.innerHTML = offices.map((o,i)=>
   `<button data-k="${o.key}" class="${i===0?'on':''}">${o.label}</button>`).join('');
+function renderYearToggle(){
+  yearToggle.innerHTML = curOffice().years.map(y=>
+    `<button data-y="${y}" class="${y===year?'on':''}">${y}</button>`).join('');
+}
 offToggle.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   office=b.dataset.k;
   offToggle.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  const ys=curOffice().years;
+  if(!ys.includes(year)) year=ys[ys.length-1];
+  renderYearToggle();
   recolor(); natStats(); render(selected);
 });
+yearToggle.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  year=+b.dataset.y;
+  yearToggle.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  recolor(); natStats(); render(selected);
+});
+renderYearToggle();
 
 // 指標切換
 document.getElementById('metricToggle').addEventListener('click',e=>{
@@ -620,14 +642,14 @@ svg.addEventListener('click',e=>{ if(e.target===svg){selLock=false;selected=null
 
 // 全國數據條（依目前職位）
 function natStats(){
-  const off = offices.find(o=>o.key===office);
-  const n=D.national[office];
+  const off = curOffice();
+  const n=D.national[curKey()]||{total:0,by_type:{},candidate_count:0};
   const indiv=n.by_type["個人"]||0, corp=n.by_type["營利事業"]||0;
   const pind = n.total? (indiv/n.total*100).toFixed(1):'0';
   const pcorp= n.total? (corp/n.total*100).toFixed(1):'0';
-  document.getElementById('yearTag').textContent = `${off.label} · ${off.year_ad} 年`;
+  document.getElementById('yearTag').textContent = `${off.label} · ${year} 年`;
   const cards=[
-    [off.label+'捐贈總額', fmtNT(n.total), `${off.year_ad} 年全臺合計`],
+    [off.label+'捐贈總額', fmtNT(n.total), `${year} 年全臺合計`],
     ['候選人', fmtInt(n.candidate_count)+'<span class="u">人</span>', '有申報之擬參選人'],
     ['個人捐贈占比', pind+'<span class="u">%</span>', '來自自然人'],
     ['企業捐贈占比', pcorp+'<span class="u">%</span>', '來自營利事業'],
@@ -705,6 +727,18 @@ function setView(v, highlightKey){
   if(v==='industry') renderIndustry();
 }
 
+// 政黨／產業分頁的「職位·年度」下拉選項（依職位、年度新到舊排序，全部置頂）
+const OFFICE_ORDER=['縣市長','議員','立法委員','總統','鄉鎮市長','村里長'];
+function scopeOptions(obj){
+  const keys=Object.keys(obj||{}).filter(k=>k!=='全部');
+  keys.sort((a,b)=>{
+    const [la,ya]=a.split('·'), [lb,yb]=b.split('·');
+    return (OFFICE_ORDER.indexOf(la)-OFFICE_ORDER.indexOf(lb)) || ((+yb)-(+ya));
+  });
+  return ['全部',...keys];
+}
+const scopeOptionHTML=k=>`<option value="${k}">${k==='全部'?'全部職位（各年）':k}</option>`;
+
 // ===== 產業比較 =====
 let indMetricKey='total';
 function renderIndustry(){
@@ -725,8 +759,7 @@ function renderIndustry(){
 }
 (function(){
   const sel=document.getElementById('indOffice');
-  sel.innerHTML=['全部'].concat(offices.map(o=>o.label))
-     .map(s=>`<option value="${s}">${s==='全部'?'全部職位':s}</option>`).join('');
+  sel.innerHTML=scopeOptions(D.industry_totals).map(scopeOptionHTML).join('');
   sel.addEventListener('change',renderIndustry);
   document.getElementById('indMetric').addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b) return;
@@ -780,8 +813,7 @@ function renderParty(){
 }
 (function(){
   const sel=document.getElementById('ppOffice');
-  sel.innerHTML=['全部'].concat(offices.map(o=>o.label))
-     .map(s=>`<option value="${s}">${s==='全部'?'全部職位':s}</option>`).join('');
+  sel.innerHTML=scopeOptions(D.party_profile).map(scopeOptionHTML).join('');
   sel.addEventListener('change',renderParty);
 })();
 document.getElementById('viewTabs').addEventListener('click',e=>{

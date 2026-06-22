@@ -80,6 +80,9 @@ try:
 except ImportError:
     sys.exit("需要 requests 套件，請先執行：pip install requests")
 
+# 部分申報明細含超長欄位（如冗長支出用途），放寬 csv 欄位上限
+csv.field_size_limit(10_000_000)
+
 API_BASE = "https://ardata.cy.gov.tw/api/v1"
 USER_AGENT = (
     "ardata-opendata-scraper/1.0 (civic open-data visualization; "
