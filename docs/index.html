@@ -126,6 +126,12 @@
     color:var(--ink); font-size:17px; letter-spacing:0}
   .cand .amt .u{font-family:var(--gothic); font-size:12px; color:var(--ink-faint);
     font-weight:500; margin-left:3px}
+  .cand.donor{align-items:flex-start}
+  .cand.donor .nm{font-weight:500}
+  .cand .to{display:block; font-family:var(--body); font-size:11px;
+    color:var(--ink-faint); letter-spacing:.02em; margin-top:3px; line-height:1.5}
+  .cand .id{font-family:var(--body); font-size:10px; color:var(--ink-faint);
+    margin-left:7px; letter-spacing:.02em}
 
   .hint{color:var(--ink-faint); font-size:12.5px; margin-top:18px; line-height:1.9}
 
@@ -299,6 +305,14 @@ function candHTML(top){
      <span class="nm">${c.name}</span>
      <span class="amt">${fmtNT(c.amount)}</span></div>`).join('');
 }
+function corpHTML(list){
+  if(!list||!list.length) return '<p class="hint">此職位於此區無企業（營利事業）捐贈。</p>';
+  return list.map((e,i)=>`<div class="cand donor">
+     <span class="rank">${i+1}</span>
+     <span class="nm">${e.name||'（未具名公司）'}${e.id?`<span class="id">統編 ${e.id}</span>`:''}
+       <span class="to">→ ${e.to&&e.to.length?e.to[0].name:'—'}${e.n_recip>1?` 等 ${e.n_recip} 位候選人`:''}</span></span>
+     <span class="amt">${fmtNT(e.total)}</span></div>`).join('');
+}
 function render(c){
   const off = offices.find(o=>o.key===office);
   const isNat = !c;
@@ -312,10 +326,11 @@ function render(c){
     <div class="big">${fmtNT(L.total)}</div>
     <div class="section-t">捐贈來源組成 <span class="en">by source</span></div>
     ${stackHTML(L.by_type,L.total)}
-    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top)}`
-         : `<p class="hint">點地圖縣市，查看該地的<b>${off.label}</b>捐贈來源與主要候選人。<br>
-            上方可切換職位（縣市長／議員／立委…）與指標（總額／企業占比）。</p>` }
-    ${ c ? `<p class="hint">點其他縣市切換；點空白處回到全國總覽。</p>`:'' }
+    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top)}` : '' }
+    <div class="section-t">主要企業金主 <span class="en">top corporate donors</span></div>
+    ${corpHTML(L.top_corp)}
+    <p class="hint">${ c ? '「→」為該企業主要捐贈對象；點其他縣市切換，點空白處回全國總覽。'
+        : '此為全國「'+off.label+'」企業金主排行；點地圖縣市可看各地企業金主。上方可切換職位與指標。' }</p>
   `;
 }
 

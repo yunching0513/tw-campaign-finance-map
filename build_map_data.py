@@ -174,17 +174,45 @@ def donor_type(account_subject: str) -> str:
     return "其他"
 
 
+def _topcorp(store, n_comp, n_recip):
+    """store: {key: {name,id,total,recip{}}} → 前 n_comp 大企業金主清單。"""
+    out = []
+    for e in sorted(store.values(), key=lambda e: -e["total"])[:n_comp]:
+        recs = sorted(e["recip"].items(), key=lambda kv: -kv[1])[:n_recip]
+        out.append({"name": e["name"], "id": e["id"], "total": round(e["total"]),
+                    "n_recip": len(e["recip"]),
+                    "to": [{"name": n, "amount": round(a)} for n, a in recs]})
+    return out
+
+
 def aggregate_layer(csv_path: Path, types: set[str]):
     """彙總某 CSV 中、屬於 types 的收入；回傳 (per_county, national)。
-    以 (候選人,日期,對象,金額,科目) 去除完全重複列，減輕更正/補申報重複計算。"""
+    以 (候選人,日期,對象,金額,科目) 去重，減輕更正/補申報重複計算。
+    同時彙總「營利事業」捐贈者（企業金主）：以統編優先、否則公司名為鍵，
+    記錄各企業捐贈總額與捐給哪些候選人。"""
     counties: dict[str, dict] = {}
     nat = {"total": 0.0, "by_type": {t: 0.0 for t in DONOR_TYPES}, "txn": 0,
-           "cands": set()}
+           "cands": set(), "corp": {}}
     seen = set()
 
     def blank():
         return {"total": 0.0, "by_type": {t: 0.0 for t in DONOR_TYPES},
-                "txn": 0, "cand_amt": {}}
+                "txn": 0, "cand_amt": {}, "corp": {}}
+
+    def add_corp(store, cid, cname, amt, recip):
+        key = cid if (cid.isdigit() and len(cid) == 8) else cname
+        if not key:
+            return
+        e = store.get(key)
+        if not e:
+            e = {"name": cname, "id": cid if (cid.isdigit() and len(cid) == 8) else "",
+                 "total": 0.0, "recip": {}}
+            store[key] = e
+        e["total"] += amt
+        if cname and not e["name"]:
+            e["name"] = cname
+        if recip:
+            e["recip"][recip] = e["recip"].get(recip, 0.0) + amt
 
     with csv_path.open(encoding="utf-8-sig") as f:
         for r in csv.DictReader(f):
@@ -202,11 +230,15 @@ def aggregate_layer(csv_path: Path, types: set[str]):
             dt = donor_type(r["account_subject"])
             cand = r["candidate"].strip()
             county = norm_county(r["electoral_district"])
+            cid = (r["counterparty_id"] or "").strip()
+            cname = (r["counterparty"] or "").strip()
             nat["total"] += amt
             nat["by_type"][dt] += amt
             nat["txn"] += 1
             if cand:
                 nat["cands"].add((county, cand))
+            if dt == "營利事業":
+                add_corp(nat["corp"], cid, cname, amt, cand)
             if not county or county in ("山地原住民", "平地原住民"):
                 continue  # 不分區/原住民 立委不落在縣市，計入全國但不上色
             c = counties.setdefault(county, blank())
@@ -215,6 +247,8 @@ def aggregate_layer(csv_path: Path, types: set[str]):
             c["txn"] += 1
             if cand:
                 c["cand_amt"][cand] = c["cand_amt"].get(cand, 0.0) + amt
+            if dt == "營利事業":
+                add_corp(c["corp"], cid, cname, amt, cand)
 
     per_county = {}
     for county, c in counties.items():
@@ -224,10 +258,12 @@ def aggregate_layer(csv_path: Path, types: set[str]):
             "by_type": {t: round(v) for t, v in c["by_type"].items()},
             "txn": c["txn"], "candidate_count": len(c["cand_amt"]),
             "top": [{"name": n, "amount": round(a)} for n, a in tops],
+            "top_corp": _topcorp(c["corp"], 8, 2),
         }
     national = {"total": round(nat["total"]),
                 "by_type": {t: round(v) for t, v in nat["by_type"].items()},
-                "txn": nat["txn"], "candidate_count": len(nat["cands"])}
+                "txn": nat["txn"], "candidate_count": len(nat["cands"]),
+                "top_corp": _topcorp(nat["corp"], 30, 3)}
     return per_county, national
 
 
@@ -278,7 +314,7 @@ def main():
         for name, c in counties.items():
             c["layers"].setdefault(layer["key"],
                                    {"total": 0, "by_type": {t: 0 for t in DONOR_TYPES},
-                                    "txn": 0, "candidate_count": 0, "top": []})
+                                    "txn": 0, "candidate_count": 0, "top": [], "top_corp": []})
         national[layer["key"]] = nat
         offices.append({"key": layer["key"], "label": layer["label"],
                         "year_ad": layer["year"] + 1911, "types": layer["types"]})
