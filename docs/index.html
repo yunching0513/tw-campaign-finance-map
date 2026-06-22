@@ -214,6 +214,20 @@
   .ext{display:inline-block; margin-left:7px; color:var(--accent); text-decoration:none;
     font-size:12px; opacity:.75; vertical-align:middle}
   .ext:hover{opacity:1; color:var(--shu-solid)}
+  .ptag{font-size:10px; letter-spacing:.04em; padding:2px 9px; border-radius:999px;
+    margin-left:9px; color:#fff; white-space:nowrap; vertical-align:middle}
+  .pdot{display:inline-block; width:8px; height:8px; border-radius:999px;
+    margin-right:6px; vertical-align:middle}
+  .cross{font-size:10px; letter-spacing:.04em; color:var(--shu-solid);
+    margin-left:10px; white-space:nowrap}
+  .party-row{display:flex; align-items:baseline; gap:10px; padding:9px 0;
+    border-bottom:1px solid var(--line)}
+  .party-row:last-child{border-bottom:none}
+  .party-row .pn{font-family:var(--gothic); font-weight:500; color:var(--ink-strong);
+    font-size:14px}
+  .party-row .pm{margin-left:auto; font-size:12px; color:var(--ink-faint)}
+  .party-row .pv{font-family:var(--latin); font-weight:600; color:var(--ink-strong);
+    font-size:15px; letter-spacing:0; min-width:74px; text-align:right}
 
   @media(max-width:880px){
     .wrap{padding:36px 20px 60px}
@@ -286,6 +300,9 @@
     <b>口徑</b>：金額為各候選人申報之「捐贈收入」明細加總，依候選人登記之選舉區（縣市）歸戶；
     立委、議員之選舉區僅到縣市層級。職位層級中立法委員為 2024 年，其餘為 2022 九合一。
     已去除完全重複列以減輕更正／補申報之重複計算；立委不分區、原住民計入全國但不歸於縣市。<br>
+    <b>政黨／產業／連結</b>：候選人政黨整理自中選會資料（g0v <code>kiang/db.cec.gov.tw</code>），
+    以「姓名＋縣市」比對 2022 各職位與 2024 區域立委；部分擬參選人未對應到候選人（標為未標示）。
+    產業別由公司名稱關鍵字推測，僅供參考。公司「↗」連到商工登記公示資料（g0v company），候選人「↗」連到搜尋。<br>
     <b>限制</b>：個人捐贈者之身分證、完整地址多經隱碼；公司統一編號多為明碼。
     資料僅供研究與監督等正當用途，再利用請標註來源。
   </footer>
@@ -322,6 +339,24 @@ const IND_COLORS = {"建商地產":"#A6392C","營造工程":"#b8a98c","其他":"
 const extLink=(url,t)=>`<a class="ext" href="${url}" target="_blank" rel="noopener" title="${t}" onclick="event.stopPropagation()">↗</a>`;
 const companyExt=id=> id?extLink(`https://company.g0v.ronny.tw/id/${id}`,'查看公司登記資料（董監事・營業項目）'):'';
 const candExt=name=>extLink(`https://www.google.com/search?q=${encodeURIComponent(name+' 政治獻金')}`,'搜尋更多資訊');
+const PARTY_COLORS={"民進黨":"#3A7D44","國民黨":"#2B5C9E","民眾黨":"#1EA0A6",
+  "時代力量":"#C19A1E","台灣基進":"#8C5A8C","親民黨":"#C56B2C","新黨":"#B8862E",
+  "台聯":"#5F7D3A","無黨籍":"#9a9a9a","其他":"#A7A29A","未標示":"#C7C1B8"};
+const pColor=p=>PARTY_COLORS[p]||PARTY_COLORS['其他'];
+const pPill=p=>p?`<span class="ptag" style="background:${pColor(p)}">${p}</span>`:'';
+const pDot=p=>p?`<span class="pdot" style="background:${pColor(p)}" title="${p}"></span>`:'';
+function partySummaryHTML(officeLabel){
+  const arr=(D.party_summary&&D.party_summary[officeLabel])||[];
+  const list=arr.filter(s=>s.total>0).slice(0,7);
+  if(!list.length) return '';
+  const rows=list.map(s=>{
+    const corpPct=s.total?Math.round(s.corp/s.total*100):0;
+    return `<div class="party-row"><span class="pn">${pDot(s.party)}${s.party}</span>
+       <span class="pm">${s.n} 人 · 企業 ${corpPct}%</span>
+       <span class="pv">${fmtNT(s.total)}</span></div>`;
+  }).join('');
+  return `<div class="section-t">各黨募款 <span class="en">by party</span></div>${rows}`;
+}
 
 function layerOf(c){ return (c.layers && c.layers[office]) ||
   {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
@@ -433,6 +468,7 @@ function render(c){
     <div class="big">${fmtNT(L.total)}</div>
     <div class="section-t">捐贈來源組成 <span class="en">by source</span></div>
     ${stackHTML(L.by_type,L.total)}
+    ${ isNat ? partySummaryHTML(off.label) : '' }
     ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top, off.label, c.name, off.year_ad)}` : '' }
     <div class="section-t">主要企業金主 <span class="en">top corporate donors</span></div>
     ${corpHTML(L.top_corp)}
@@ -493,7 +529,7 @@ function companyCard(c, i){
     const k=`${d.name}|${d.office}|${d.district}|${d.year}`;
     const has=CAND[k];
     return `<div class="dline${has?' clickable':''}"${has?` data-cand="${k}"`:''}>
-       <span class="dto">${d.name}</span>
+       <span class="dto">${pDot(d.party)}${d.name}</span>
        <span class="dctx">${d.office} · ${d.district||'—'} · ${d.year}</span>
        <span class="damt">${fmtNT(d.amount)}</span></div>`;
   }).join('');
@@ -501,7 +537,7 @@ function companyCard(c, i){
      <div class="company-hd">
        <span class="rank">${i+1}</span>
        <span class="cname">${c.name||'（未具名）'}${tag}${c.id?`<span class="id">統編 ${c.id}</span>`:''}${companyExt(c.id)}</span>
-       <span class="cmeta">捐 ${c.n_recip} 位候選人<b>${fmtNT(c.total)}</b></span>
+       <span class="cmeta">捐 ${c.n_recip} 位${c.parties&&c.parties.length>=2?`<span class="cross">跨 ${c.parties.length} 黨</span>`:''}<b>${fmtNT(c.total)}</b></span>
        <span class="chev">▸</span>
      </div>
      <div class="company-body">${body}</div>
@@ -586,7 +622,7 @@ function openCandidate(key){
        <span class="amt">${fmtNT(x.amount)}</span></div>`).join('');
     card.innerHTML=`<button class="modal-x" data-close>×</button>
       <div class="kicker">Candidate / 候選人</div>
-      <h2>${d.name}${candExt(d.name)}</h2>
+      <h2>${d.name}${pPill(d.party)}${candExt(d.name)}</h2>
       <div class="sub">${d.office} · ${d.district} · ${d.year} 年</div>
       <div class="cand-stats">
         <div><div class="biglabel">募得總額 · raised</div><div class="big">${fmtNT(d.total)}</div></div>

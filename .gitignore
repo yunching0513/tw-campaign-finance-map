@@ -3,6 +3,7 @@ data/raw/
 data/normalized/*.csv
 data/*.geojson
 data/scrape.log
+data/party/
 
 # 注意：web/map_data.js 是「彙總後」的小檔，需要上版控以供網頁載入，故不在此排除。
 

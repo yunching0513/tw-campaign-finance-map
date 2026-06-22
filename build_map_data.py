@@ -202,7 +202,86 @@ def classify_industry(name: str):
     return "其他", False
 
 
-def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
+# ===== 候選人政黨（資料來源：g0v kiang/db.cec.gov.tw，整理自中選會）=====
+COUNTIES = ["臺北市", "新北市", "桃園市", "臺中市", "臺南市", "高雄市", "基隆市",
+            "新竹市", "嘉義市", "新竹縣", "苗栗縣", "彰化縣", "南投縣", "雲林縣",
+            "嘉義縣", "屏東縣", "宜蘭縣", "花蓮縣", "臺東縣", "澎湖縣", "金門縣", "連江縣"]
+PARTY_GROUP = {
+    "民主進步黨": "民進黨", "中國國民黨": "國民黨",
+    "台灣民眾黨": "民眾黨", "臺灣民眾黨": "民眾黨",
+    "時代力量": "時代力量", "台灣基進": "台灣基進", "臺灣基進": "台灣基進",
+    "親民黨": "親民黨", "新黨": "新黨", "台灣團結聯盟": "台聯",
+}
+CEC_RAW = "https://raw.githubusercontent.com/kiang/db.cec.gov.tw/master/data/"
+CEC_2022_FILES = ["直轄市長", "縣市長", "直轄市議員", "縣市議員", "鄉鎮市長", "村里長"]
+
+
+def norm_party(p: str) -> str:
+    p = (p or "").strip()
+    if not p:
+        return ""
+    if "無黨" in p or "未經政黨" in p:
+        return "無黨籍"
+    return PARTY_GROUP.get(p, "其他")
+
+
+def area_to_county(area: str) -> str:
+    a = norm_county(area)
+    for c in COUNTIES:
+        if a.startswith(c):
+            return c
+    return a
+
+
+def load_party_map(data_dir: Path) -> dict:
+    """回傳 {(候選人, 縣市, 西元年): 政黨群組}。下載並快取於 data/party/。"""
+    cache = data_dir / "party"
+    cache.mkdir(parents=True, exist_ok=True)
+    pmap: dict = {}
+
+    # 2022 各職位候選人 CSV
+    import csv as _csv
+    import io as _io
+    for office in CEC_2022_FILES:
+        fp = cache / f"2022_{office}.csv"
+        if not fp.exists():
+            try:
+                r = requests.get(CEC_RAW + f"2022/{office}.csv", timeout=60)
+                r.raise_for_status()
+                fp.write_bytes(r.content)
+            except Exception as e:  # noqa: BLE001
+                print(f"  ! 政黨資料下載失敗 2022/{office}: {e}", file=sys.stderr)
+                continue
+        for row in _csv.DictReader(_io.StringIO(fp.read_text(encoding="utf-8"))):
+            nm = (row.get("cand_name") or "").strip()
+            if nm:
+                pmap[(nm, area_to_county(row.get("area", "")), 2022)] = \
+                    norm_party(row.get("party", ""))
+
+    # 2024 區域立委（從村里得票 JSON 萃取 候選人→政黨→選區縣市）
+    fp = cache / "2024_zone_cunli.json"
+    if not fp.exists():
+        try:
+            r = requests.get(CEC_RAW + "ly/2024_zone_cunli.json", timeout=120)
+            r.raise_for_status()
+            fp.write_bytes(r.content)
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! 2024 立委政黨資料下載失敗: {e}", file=sys.stderr)
+            fp = None
+    if fp and fp.exists():
+        zj = json.loads(fp.read_text(encoding="utf-8"))
+        for v in zj.values():
+            county = area_to_county(v.get("zone", ""))
+            for c in (v.get("votes") or {}).values():
+                nm = (c.get("name") or "").strip()
+                if nm:
+                    pmap[(nm, county, 2024)] = norm_party(c.get("party", ""))
+
+    print(f"  政黨對照：{len(pmap)} 筆（2022 各職位 + 2024 區域立委）")
+    return pmap
+
+
+def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n=15):
     """每位候選人（依 姓名|職位|選區|年）的金主結構：
     收入總額、來源類別占比、企業金主之產業分布、收受最多的前 N 位金主。
     僅收錄收入 >= floor 的候選人，控制檔案大小。"""
@@ -263,6 +342,7 @@ def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
         donors = sorted(c["donors"].values(), key=lambda e: -e["amt"])[:top_n]
         out[key] = {"name": c["name"], "office": c["office"], "district": c["district"],
                     "year": c["year"], "total": round(c["total"]),
+                    "party": party_map.get((c["name"], c["district"], c["year"]), ""),
                     "n_donors": len(c["donors"]),
                     "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
                     "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
@@ -272,7 +352,7 @@ def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
     return out
 
 
-def build_company_registry(norm_dir: Path):
+def build_company_registry(norm_dir: Path, party_map: dict):
     """跨選區/職位彙總每家企業的捐贈網絡（捐給哪些候選人）。
     僅收錄『捐給 2 位以上候選人』的企業（政商關係的重點），並標註產業。"""
     reg: dict[str, dict] = {}
@@ -321,15 +401,17 @@ def build_company_registry(norm_dir: Path):
     for key, e in reg.items():
         dons = sorted(
             ({"name": k[0], "office": k[1], "district": k[2], "year": k[3],
+              "party": party_map.get((k[0], k[2], k[3]), ""),
               "amount": round(v)} for k, v in e["to"].items()),
             key=lambda d: -d["amount"])
         n_recip = len({d["name"] for d in dons})
         if n_recip < 2:           # 只收錄跨候選人金主（押寶多位才是政商關係重點）
             continue
+        parties = sorted({d["party"] for d in dons if d["party"]})
         companies.append({"key": key, "name": e["name"], "id": e["id"],
                           "ind": e["ind"], "land": e["land"],
                           "total": round(e["total"]), "n_recip": n_recip,
-                          "to": dons[:60]})
+                          "parties": parties, "to": dons[:60]})
     companies.sort(key=lambda c: (-c["n_recip"], -c["total"]))
     return companies
 
@@ -472,14 +554,31 @@ def main():
     if not offices:
         sys.exit("沒有任何層級有資料，請先跑 ardata_scraper.py 產生 transactions_*.csv")
 
+    print("載入候選人政黨對照（中選會／g0v）…")
+    party_map = load_party_map(data_dir)
+
     print("建立企業金主跨選區網絡…")
-    companies = build_company_registry(norm)
+    companies = build_company_registry(norm, party_map)
     land_n = sum(1 for c in companies if c["land"])
     print(f"  跨候選人企業金主：{len(companies)} 家（土地開發相關 {land_n} 家）")
 
     print("建立候選人金主結構…")
-    candidates = build_candidate_registry(norm)
-    print(f"  候選人（收入≥5萬）：{len(candidates)} 位")
+    candidates = build_candidate_registry(norm, party_map)
+    matched = sum(1 for c in candidates.values() if c["party"])
+    print(f"  候選人（收入≥5萬）：{len(candidates)} 位，對到政黨 {matched} 位")
+
+    # 各職位 × 政黨 募款彙總
+    psum: dict = {}
+    for rec in candidates.values():
+        pty = rec.get("party") or "未標示"
+        s = psum.setdefault(rec["office"], {}).setdefault(
+            pty, {"party": pty, "total": 0, "indiv": 0, "corp": 0, "n": 0})
+        s["total"] += rec["total"]
+        s["indiv"] += rec["by_type"].get("個人", 0)
+        s["corp"] += rec["by_type"].get("營利事業", 0)
+        s["n"] += 1
+    party_summary = {off: sorted(d.values(), key=lambda x: -x["total"])
+                     for off, d in psum.items()}
 
     payload = {
         "meta": {"viewbox": list(viewbox), "donor_types": DONOR_TYPES,
@@ -489,6 +588,7 @@ def main():
         "counties": sorted(counties.values(),
                            key=lambda c: -c["layers"][offices[0]["key"]]["total"]),
         "companies": companies,
+        "party_summary": party_summary,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
