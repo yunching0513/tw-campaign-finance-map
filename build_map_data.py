@@ -177,12 +177,91 @@ def donor_type(account_subject: str) -> str:
 def _topcorp(store, n_comp, n_recip):
     """store: {key: {name,id,total,recip{}}} → 前 n_comp 大企業金主清單。"""
     out = []
-    for e in sorted(store.values(), key=lambda e: -e["total"])[:n_comp]:
+    for k, e in sorted(store.items(), key=lambda kv: -kv[1]["total"])[:n_comp]:
         recs = sorted(e["recip"].items(), key=lambda kv: -kv[1])[:n_recip]
-        out.append({"name": e["name"], "id": e["id"], "total": round(e["total"]),
-                    "n_recip": len(e["recip"]),
+        out.append({"key": k, "name": e["name"], "id": e["id"],
+                    "total": round(e["total"]), "n_recip": len(e["recip"]),
                     "to": [{"name": n, "amount": round(a)} for n, a in recs]})
     return out
+
+
+# 產業分類（依公司名稱關鍵字推測；資料本身無產業欄位）
+LAND_DEV_KW = ["建設", "開發", "不動產", "地產", "房屋", "重劃", "都更", "建商",
+               "土地", "資產"]
+CONSTRUCTION_KW = ["營造", "建築", "土木", "營建", "工程", "包工", "預拌",
+                   "混凝土", "鋼鐵", "水泥", "起重"]
+
+
+def classify_industry(name: str):
+    """回傳 (產業標籤, 是否土地開發相關)。"""
+    n = name or ""
+    if any(k in n for k in LAND_DEV_KW):
+        return "建商地產", True
+    if any(k in n for k in CONSTRUCTION_KW):
+        return "營造工程", True
+    return "其他", False
+
+
+def build_company_registry(norm_dir: Path):
+    """跨選區/職位彙總每家企業的捐贈網絡（捐給哪些候選人）。
+    僅收錄『捐給 2 位以上候選人』的企業（政商關係的重點），並標註產業。"""
+    reg: dict[str, dict] = {}
+    for layer in LAYERS:
+        p = norm_dir / f"transactions_{layer['year']}.csv"
+        if not p.exists():
+            continue
+        types, label, yr = set(layer["types"]), layer["label"], layer["year"] + 1911
+        seen = set()
+        with p.open(encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                if r["direction"] != "income" or r["election_type"] not in types:
+                    continue
+                if donor_type(r["account_subject"]) != "營利事業":
+                    continue
+                cid = (r["counterparty_id"] or "").strip()
+                cname = (r["counterparty"] or "").strip()
+                key = cid if (cid.isdigit() and len(cid) == 8) else cname
+                cand = r["candidate"].strip()
+                if not key or not cand:
+                    continue
+                county = norm_county(r["electoral_district"])
+                try:
+                    amt = float(r["amount"] or 0)
+                except ValueError:
+                    amt = 0.0
+                dd = (key, cand, r["txn_date_roc"], r["amount"], label, county)
+                if dd in seen:
+                    continue
+                seen.add(dd)
+                e = reg.get(key)
+                if not e:
+                    ind, land = classify_industry(cname)
+                    e = {"name": cname,
+                         "id": cid if (cid.isdigit() and len(cid) == 8) else "",
+                         "ind": ind, "land": land, "total": 0.0, "to": {}}
+                    reg[key] = e
+                if cname and not e["name"]:
+                    e["name"] = cname
+                    e["ind"], e["land"] = classify_industry(cname)
+                e["total"] += amt
+                tk = (cand, label, county, yr)
+                e["to"][tk] = e["to"].get(tk, 0.0) + amt
+
+    companies = []
+    for key, e in reg.items():
+        dons = sorted(
+            ({"name": k[0], "office": k[1], "district": k[2], "year": k[3],
+              "amount": round(v)} for k, v in e["to"].items()),
+            key=lambda d: -d["amount"])
+        n_recip = len({d["name"] for d in dons})
+        if n_recip < 2:           # 只收錄跨候選人金主（押寶多位才是政商關係重點）
+            continue
+        companies.append({"key": key, "name": e["name"], "id": e["id"],
+                          "ind": e["ind"], "land": e["land"],
+                          "total": round(e["total"]), "n_recip": n_recip,
+                          "to": dons[:60]})
+    companies.sort(key=lambda c: (-c["n_recip"], -c["total"]))
+    return companies
 
 
 def aggregate_layer(csv_path: Path, types: set[str]):
@@ -323,6 +402,11 @@ def main():
     if not offices:
         sys.exit("沒有任何層級有資料，請先跑 ardata_scraper.py 產生 transactions_*.csv")
 
+    print("建立企業金主跨選區網絡…")
+    companies = build_company_registry(norm)
+    land_n = sum(1 for c in companies if c["land"])
+    print(f"  跨候選人企業金主：{len(companies)} 家（土地開發相關 {land_n} 家）")
+
     payload = {
         "meta": {"viewbox": list(viewbox), "donor_types": DONOR_TYPES,
                  "offices": offices,
@@ -330,6 +414,7 @@ def main():
         "national": national,
         "counties": sorted(counties.values(),
                            key=lambda c: -c["layers"][offices[0]["key"]]["total"]),
+        "companies": companies,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

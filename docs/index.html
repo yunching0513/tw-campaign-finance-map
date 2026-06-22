@@ -150,11 +150,56 @@
   .topbar .mt{font-size:12px; letter-spacing:var(--ls-wide); color:var(--ink-faint);
     text-transform:uppercase}
 
+  /* 視圖切換 + 金主透視 */
+  .viewtabs{display:inline-flex; border:1px solid var(--line); border-radius:999px;
+    overflow:hidden; margin-bottom:26px}
+  .viewtabs button{font-family:var(--body); font-size:12px; letter-spacing:var(--ls);
+    padding:9px 24px; border:none; background:var(--panel); color:var(--ink-faint);
+    cursor:pointer; transition:.25s var(--ease)}
+  .viewtabs button.on{background:var(--ink-strong); color:#fff}
+  .donor-bar{display:flex; align-items:center; gap:14px; margin-bottom:4px; flex-wrap:wrap}
+  .cand.donor.linked{cursor:pointer}
+  .cand.donor.linked:hover{background:var(--panel-soft)}
+  .cand.donor.linked .nm{text-decoration:underline; text-decoration-color:var(--line);
+    text-underline-offset:3px}
+
+  #companyList{margin-top:18px; border-top:1px solid var(--line)}
+  .company{border-bottom:1px solid var(--line); background:var(--panel)}
+  .company-hd{display:flex; align-items:baseline; gap:14px; padding:15px 20px;
+    cursor:pointer; transition:background .2s var(--ease)}
+  .company-hd:hover{background:var(--panel-soft)}
+  .company .rank{font-family:var(--latin); font-style:italic; color:var(--accent);
+    font-size:18px; width:30px; flex:none}
+  .company .cname{font-family:var(--gothic); font-weight:500; color:var(--ink-strong);
+    font-size:16px}
+  .company .tag{font-size:10px; letter-spacing:.05em; padding:2px 9px; border-radius:999px;
+    margin-left:9px; white-space:nowrap}
+  .tag.land{background:var(--shu-soft); color:#7a2f25}
+  .tag.other{background:var(--panel-soft); color:var(--ink-faint); border:1px solid var(--line)}
+  .company .id{font-family:var(--body); font-size:10px; color:var(--ink-faint); margin-left:8px}
+  .company .cmeta{margin-left:auto; font-size:12.5px; color:#555; white-space:nowrap}
+  .company .cmeta b{font-family:var(--latin); font-weight:600; color:var(--ink-strong);
+    font-size:17px; letter-spacing:0; margin-left:7px}
+  .company .chev{flex:none; color:var(--ink-faint); margin-left:12px;
+    transition:transform .25s var(--ease)}
+  .company.open .chev{transform:rotate(90deg)}
+  .company-body{padding:2px 20px 16px 64px; display:none}
+  .company.open .company-body{display:block}
+  .dline{display:flex; align-items:baseline; gap:12px; padding:8px 0;
+    border-top:1px dashed var(--line)}
+  .dline:first-child{border-top:none}
+  .dline .dto{font-family:var(--gothic); font-weight:500; color:var(--ink-strong);
+    font-size:14px; min-width:90px}
+  .dline .dctx{font-size:11.5px; color:var(--ink-faint); letter-spacing:.02em}
+  .dline .damt{margin-left:auto; font-family:var(--latin); font-weight:600;
+    font-size:15px; color:var(--shu-solid); letter-spacing:0}
+
   @media(max-width:880px){
     .wrap{padding:36px 20px 60px}
     .grid{grid-template-columns:1fr}
     .mapwrap{border-right:1px solid var(--line); border-bottom:none}
     .stats{grid-template-columns:repeat(2,1fr)}
+    .company .cmeta{margin-left:0; flex-basis:100%; padding-left:44px}
   }
 </style>
 </head>
@@ -166,27 +211,48 @@
   呈現各地候選人申報的政治獻金<b>收入規模</b>與<b>來源組成</b>。可切換職位層級——
   <b>縣市長、議員、鄉鎮市長、村里長（2022 九合一）</b>與<b>立法委員（2024）</b>。</p>
 
-  <div class="topbar">
-    <span class="mt">職位</span>
-    <div class="toggle" id="officeToggle"></div>
-    <span class="mt" style="margin-left:8px">指標</span>
-    <div class="toggle" id="metricToggle">
-      <button data-m="total" class="on">捐贈總額</button>
-      <button data-m="corp">企業占比</button>
-    </div>
-    <span class="mt" id="yearTag" style="margin-left:auto"></span>
+  <div class="viewtabs" id="viewTabs">
+    <button data-v="map" class="on">地圖</button>
+    <button data-v="donor">金主透視</button>
   </div>
 
-  <div class="stats" id="natStats"></div>
+  <div id="mapView">
+    <div class="topbar">
+      <span class="mt">職位</span>
+      <div class="toggle" id="officeToggle"></div>
+      <span class="mt" style="margin-left:8px">指標</span>
+      <div class="toggle" id="metricToggle">
+        <button data-m="total" class="on">捐贈總額</button>
+        <button data-m="corp">企業占比</button>
+      </div>
+      <span class="mt" id="yearTag" style="margin-left:auto"></span>
+    </div>
 
-  <div class="grid">
-    <figure class="mapwrap" style="margin:0">
-      <span class="vlabel">臺灣 政治獻金</span>
-      <svg class="map" id="map" preserveAspectRatio="xMidYMid meet" aria-label="臺灣縣市政治獻金地圖"></svg>
-      <div class="legend"><span id="legLo">少</span><span class="bar"></span><span id="legHi">多</span></div>
-    </figure>
+    <div class="stats" id="natStats"></div>
 
-    <section class="panel" id="panel"></section>
+    <div class="grid">
+      <figure class="mapwrap" style="margin:0">
+        <span class="vlabel">臺灣 政治獻金</span>
+        <svg class="map" id="map" preserveAspectRatio="xMidYMid meet" aria-label="臺灣縣市政治獻金地圖"></svg>
+        <div class="legend"><span id="legLo">少</span><span class="bar"></span><span id="legHi">多</span></div>
+      </figure>
+
+      <section class="panel" id="panel"></section>
+    </div>
+  </div>
+
+  <div id="donorView" hidden>
+    <div class="donor-bar">
+      <span class="mt">產業</span>
+      <div class="toggle" id="indFilter">
+        <button data-f="land" class="on">土地開發・建商</button>
+        <button data-f="all">全部產業</button>
+      </div>
+      <span class="mt" id="donorCount" style="margin-left:auto"></span>
+    </div>
+    <p class="lede" style="margin:2px 0 4px">點企業看它捐給<b>哪些候選人</b>——同一家公司橫跨多個選區、多個職位押寶，最能看出政商關係。
+      僅收錄「捐給 2 位以上候選人」的企業；產業別依公司名稱關鍵字推測。</p>
+    <div id="companyList"></div>
   </div>
 
   <footer>
@@ -222,6 +288,9 @@ let metric = 'total';
 const offices = D.meta.offices;          // [{key,label,year_ad,types}]
 let office = offices[0].key;             // 預設第一個職位（縣市長）
 const counties = D.counties;
+const companies = D.companies || [];     // 跨選區企業金主（捐 2 位以上候選人）
+const companyIndex = new Map(companies.map(c=>[c.key,c]));
+let view = 'map', indFilter = 'land';    // 'map' | 'donor' ；產業：'land' | 'all'
 
 function layerOf(c){ return (c.layers && c.layers[office]) ||
   {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
@@ -307,11 +376,14 @@ function candHTML(top){
 }
 function corpHTML(list){
   if(!list||!list.length) return '<p class="hint">此職位於此區無企業（營利事業）捐贈。</p>';
-  return list.map((e,i)=>`<div class="cand donor">
+  return list.map((e,i)=>{
+    const linked = companyIndex.has(e.key);
+    return `<div class="cand donor${linked?' linked':''}"${linked?` data-corpkey="${e.key}"`:''}>
      <span class="rank">${i+1}</span>
      <span class="nm">${e.name||'（未具名公司）'}${e.id?`<span class="id">統編 ${e.id}</span>`:''}
        <span class="to">→ ${e.to&&e.to.length?e.to[0].name:'—'}${e.n_recip>1?` 等 ${e.n_recip} 位候選人`:''}</span></span>
-     <span class="amt">${fmtNT(e.total)}</span></div>`).join('');
+     <span class="amt">${fmtNT(e.total)}</span></div>`;
+  }).join('');
 }
 function render(c){
   const off = offices.find(o=>o.key===office);
@@ -377,6 +449,71 @@ function natStats(){
   document.getElementById('natStats').innerHTML = cards.map(([k,v,s])=>
     `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
 }
+
+// ===== 金主透視：企業跨選區捐贈網絡 =====
+function companyCard(c, i){
+  const tag = c.land ? `<span class="tag land">${c.ind}</span>`
+                     : `<span class="tag other">${c.ind}</span>`;
+  const body = c.to.map(d=>`<div class="dline">
+       <span class="dto">${d.name}</span>
+       <span class="dctx">${d.office} · ${d.district||'—'} · ${d.year}</span>
+       <span class="damt">${fmtNT(d.amount)}</span></div>`).join('');
+  return `<div class="company" data-key="${c.key}">
+     <div class="company-hd">
+       <span class="rank">${i+1}</span>
+       <span class="cname">${c.name||'（未具名）'}${tag}${c.id?`<span class="id">統編 ${c.id}</span>`:''}</span>
+       <span class="cmeta">捐 ${c.n_recip} 位候選人<b>${fmtNT(c.total)}</b></span>
+       <span class="chev">▸</span>
+     </div>
+     <div class="company-body">${body}</div>
+   </div>`;
+}
+function renderCompanies(highlightKey){
+  let list = (indFilter==='land') ? companies.filter(c=>c.land) : companies.slice();
+  if(highlightKey){
+    const i = list.findIndex(c=>c.key===highlightKey);
+    if(i>0){ list.unshift(list.splice(i,1)[0]); }
+    else if(i<0 && companyIndex.has(highlightKey)){ list.unshift(companyIndex.get(highlightKey)); }
+  }
+  const CAP=400, shown=list.slice(0,CAP);
+  document.getElementById('companyList').innerHTML =
+     shown.map((c,i)=>companyCard(c,i)).join('') || '<p class="hint">查無資料。</p>';
+  document.getElementById('donorCount').textContent =
+     `${list.length.toLocaleString()} 家企業捐給 2 位以上候選人`
+     + (list.length>CAP?`（顯示前 ${CAP} 家）`:'');
+  if(highlightKey){
+    const el=document.querySelector(`#companyList .company[data-key="${CSS.escape(highlightKey)}"]`);
+    if(el){ el.classList.add('open'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  }
+}
+function setView(v, highlightKey){
+  view=v;
+  document.getElementById('mapView').hidden = (v!=='map');
+  document.getElementById('donorView').hidden = (v!=='donor');
+  document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='donor') renderCompanies(highlightKey);
+}
+document.getElementById('viewTabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(b) setView(b.dataset.v);
+});
+document.getElementById('indFilter').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  indFilter=b.dataset.f;
+  document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x===b));
+  renderCompanies();
+});
+document.getElementById('companyList').addEventListener('click',e=>{
+  const hd=e.target.closest('.company-hd'); if(!hd) return;
+  hd.parentElement.classList.toggle('open');
+});
+// 地圖面板的企業列 → 跳到金主透視並展開該企業的捐贈網
+panel.addEventListener('click',e=>{
+  const row=e.target.closest('.cand.donor.linked[data-corpkey]'); if(!row) return;
+  const key=row.dataset.corpkey; if(!companyIndex.has(key)) return;
+  indFilter='all';
+  document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x.dataset.f==='all'));
+  setView('donor', key);
+});
 
 natStats(); render(null);
 </script>
