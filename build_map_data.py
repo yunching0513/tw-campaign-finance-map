@@ -652,6 +652,23 @@ def main():
     party_summary = {off: sorted(d.values(), key=lambda x: -x["total"])
                      for off, d in psum.items()}
 
+    # 政黨輪廓（各職位＋全部）：來源組成、企業產業組成、平均每人
+    pprof: dict = {}
+
+    def _addpp(scope, rec):
+        pty = rec.get("party") or "未標示"
+        s = pprof.setdefault(scope, {}).setdefault(
+            pty, {"total": 0, "n": 0, "by_type": {}, "corp_ind": {}})
+        s["total"] += rec["total"]
+        s["n"] += 1
+        for t, v in rec["by_type"].items():
+            s["by_type"][t] = s["by_type"].get(t, 0) + v
+        for k, v in rec["corp_ind"].items():
+            s["corp_ind"][k] = s["corp_ind"].get(k, 0) + v
+    for rec in candidates.values():
+        _addpp("全部", rec)
+        _addpp(rec["office"], rec)
+
     payload = {
         "meta": {"viewbox": list(viewbox), "donor_types": DONOR_TYPES,
                  "offices": offices,
@@ -661,6 +678,7 @@ def main():
                            key=lambda c: -c["layers"][offices[0]["key"]]["total"]),
         "companies": companies,
         "party_summary": party_summary,
+        "party_profile": pprof,
         "county_corp": build_county_corp(norm),
     }
     out = Path(args.out)

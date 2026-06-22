@@ -234,6 +234,25 @@
   .party-row .pv{font-family:var(--latin); font-weight:600; color:var(--ink-strong);
     font-size:15px; letter-spacing:0; min-width:74px; text-align:right}
 
+  /* 政黨比較分頁 */
+  .pp-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+    border:1px solid var(--line)}
+  .pp-card{background:var(--panel); padding:24px 28px}
+  .pp-wide{grid-column:1 / -1}
+  .pp-row{display:flex; align-items:center; gap:12px; padding:7px 0}
+  .pp-name{font-family:var(--gothic); font-weight:500; color:var(--ink-strong);
+    font-size:13px; width:88px; flex:none; white-space:nowrap}
+  .pp-track{flex:1; height:14px; background:var(--panel-soft); border-radius:999px; overflow:hidden}
+  .pp-fill{display:block; height:100%; transition:width .5s var(--ease)}
+  .pp-val{font-family:var(--latin); font-weight:600; color:var(--ink-strong);
+    font-size:14px; letter-spacing:0; width:80px; text-align:right; flex:none}
+  .pp-stack{flex:1; display:flex; height:16px; border-radius:999px; overflow:hidden;
+    background:var(--panel-soft)}
+  .pp-stack span{height:100%}
+  .pp-legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin:2px 0 16px;
+    color:#555; font-size:12px}
+  @media(max-width:880px){ .pp-grid{grid-template-columns:1fr} .pp-name{width:66px} }
+
   @media(max-width:880px){
     .wrap{padding:36px 20px 60px}
     .grid{grid-template-columns:1fr}
@@ -254,6 +273,7 @@
   <div class="viewtabs" id="viewTabs">
     <button data-v="map" class="on">地圖</button>
     <button data-v="donor">金主透視</button>
+    <button data-v="party">政黨比較</button>
   </div>
 
   <div id="mapView">
@@ -297,6 +317,21 @@
     <p class="lede" style="margin:2px 0 4px">點企業看它捐給<b>哪些候選人</b>——同一家公司橫跨多個選區、多個職位押寶，最能看出政商關係。
       僅收錄「捐給 2 位以上候選人」的企業；產業別依公司名稱關鍵字推測。</p>
     <div id="companyList"></div>
+  </div>
+
+  <div id="partyView" hidden>
+    <div class="donor-bar">
+      <span class="mt">職位</span>
+      <select id="ppOffice" class="sel"></select>
+      <span class="mt" id="ppNote" style="margin-left:auto"></span>
+    </div>
+    <p class="lede" style="margin:2px 0 10px">比較各政黨的<b>募款規模</b>與<b>金主結構</b>——個人 vs 企業、企業的產業組成，以及大黨與小黨之間的金額差距。</p>
+    <div class="pp-grid">
+      <section class="pp-card"><div class="section-t">各黨募款總額 <span class="en">total raised</span></div><div id="ppTotal"></div></section>
+      <section class="pp-card"><div class="section-t">平均每位候選人 <span class="en">avg / candidate</span></div><div id="ppAvg"></div></section>
+      <section class="pp-card pp-wide"><div class="section-t">個人 vs 企業（來源組成） <span class="en">by source</span></div><div id="ppSource"></div></section>
+      <section class="pp-card pp-wide"><div class="section-t">企業捐贈・產業組成 <span class="en">corporate by industry</span></div><div id="ppIndustry"></div></section>
+    </div>
   </div>
 
   <div class="modal" id="candModal" hidden>
@@ -598,9 +633,60 @@ function setView(v, highlightKey){
   view=v;
   document.getElementById('mapView').hidden = (v!=='map');
   document.getElementById('donorView').hidden = (v!=='donor');
+  document.getElementById('partyView').hidden = (v!=='party');
   document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   if(v==='donor') renderCompanies(highlightKey);
+  if(v==='party') renderParty();
 }
+
+// ===== 政黨比較 =====
+function partyList(scope){
+  const prof=(D.party_profile&&D.party_profile[scope])||{};
+  return Object.entries(prof)
+    .filter(([p,s])=>p!=='未標示' && s.total>0)
+    .map(([p,s])=>({party:p,...s}))
+    .sort((a,b)=>b.total-a.total).slice(0,9);
+}
+function ppBars(arr,valFn){
+  const max=Math.max(1,...arr.map(valFn));
+  return arr.map(s=>`<div class="pp-row"><span class="pp-name">${pDot(s.party)}${s.party}</span>
+     <div class="pp-track"><span class="pp-fill" style="width:${(valFn(s)/max*100).toFixed(1)}%;background:${pColor(s.party)}"></span></div>
+     <span class="pp-val">${fmtNT(valFn(s))}</span></div>`).join('');
+}
+function ppComp(arr,dictKey,colorFn,order){
+  return arr.map(s=>{
+    const d=s[dictKey]||{}, tot=Object.values(d).reduce((a,b)=>a+b,0);
+    const keys=order||Object.keys(d).sort((a,b)=>(d[b]||0)-(d[a]||0));
+    const segs=keys.map(k=>{const w=tot?(d[k]||0)/tot*100:0;
+      return w>0.6?`<span style="width:${w}%;background:${colorFn(k)}" title="${k} ${Math.round(w)}%"></span>`:''}).join('');
+    return `<div class="pp-row"><span class="pp-name">${pDot(s.party)}${s.party}</span>
+       <div class="pp-stack">${segs||'<span style="width:100%;background:var(--panel-soft)"></span>'}</div></div>`;
+  }).join('');
+}
+function ppLegend(items,colorFn){
+  return '<div class="pp-legend">'+items.map(k=>`<span class="key"><span class="dot" style="background:${colorFn(k)}"></span>${k}</span>`).join('')+'</div>';
+}
+function renderParty(){
+  const scope=document.getElementById('ppOffice').value;
+  const arr=partyList(scope);
+  document.getElementById('ppTotal').innerHTML=ppBars(arr,s=>s.total);
+  document.getElementById('ppAvg').innerHTML=ppBars(arr,s=>Math.round(s.total/(s.n||1)));
+  const types=D.meta.donor_types;
+  document.getElementById('ppSource').innerHTML=
+     ppLegend(types,k=>TYPE_COLORS[k]||'#ccc')+ppComp(arr,'by_type',k=>TYPE_COLORS[k]||'#ccc',types);
+  const inds=INDUSTRIES.filter(k=>arr.some(s=>(s.corp_ind||{})[k]>0));
+  document.getElementById('ppIndustry').innerHTML=
+     ppLegend(inds,indColor)+ppComp(arr,'corp_ind',indColor,inds);
+  const n=arr.reduce((s,x)=>s+x.n,0);
+  document.getElementById('ppNote').textContent=
+     `${scope==='全部'?'全部職位':scope}：${arr.length} 黨 · ${n.toLocaleString()} 位候選人（不含未標示）`;
+}
+(function(){
+  const sel=document.getElementById('ppOffice');
+  sel.innerHTML=['全部'].concat(offices.map(o=>o.label))
+     .map(s=>`<option value="${s}">${s==='全部'?'全部職位':s}</option>`).join('');
+  sel.addEventListener('change',renderParty);
+})();
 document.getElementById('viewTabs').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(b) setView(b.dataset.v);
 });
