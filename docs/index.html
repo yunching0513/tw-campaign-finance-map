@@ -157,7 +157,12 @@
     padding:9px 24px; border:none; background:var(--panel); color:var(--ink-faint);
     cursor:pointer; transition:.25s var(--ease)}
   .viewtabs button.on{background:var(--ink-strong); color:#fff}
-  .donor-bar{display:flex; align-items:center; gap:14px; margin-bottom:4px; flex-wrap:wrap}
+  .donor-bar{display:flex; align-items:center; gap:10px 14px; margin-bottom:4px; flex-wrap:wrap}
+  .sel{font-family:var(--body); font-size:12px; letter-spacing:var(--ls); color:var(--ink);
+    border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+    background:var(--panel); cursor:pointer}
+  .company.flat .company-hd{cursor:default}
+  .company.flat .company-hd:hover{background:none}
   .cand.donor.linked{cursor:pointer}
   .cand.donor.linked:hover{background:var(--panel-soft)}
   .cand.donor.linked .nm{text-decoration:underline; text-decoration-color:var(--line);
@@ -278,10 +283,18 @@
 
   <div id="donorView" hidden>
     <div class="donor-bar">
+      <span class="mt">範圍</span>
+      <select id="scopeSel" class="sel"></select>
       <span class="mt">產業</span>
       <div class="toggle" id="indFilter">
-        <button data-f="land" class="on">土地開發・建商</button>
-        <button data-f="all">全部產業</button>
+        <button data-f="all" class="on">全部</button>
+        <button data-f="land">土地開發・建商</button>
+        <button data-f="other">其他產業</button>
+      </div>
+      <span class="mt">排序</span>
+      <div class="toggle" id="sortSel">
+        <button data-s="total" class="on">捐贈總額</button>
+        <button data-s="recip">候選人數</button>
       </div>
       <span class="mt" id="donorCount" style="margin-left:auto"></span>
     </div>
@@ -333,7 +346,8 @@ let office = offices[0].key;             // 預設第一個職位（縣市長）
 const counties = D.counties;
 const companies = D.companies || [];     // 跨選區企業金主（捐 2 位以上候選人）
 const companyIndex = new Map(companies.map(c=>[c.key,c]));
-let view = 'map', indFilter = 'land';    // 'map' | 'donor' ；產業：'land' | 'all'
+let view = 'map', indFilter = 'all';     // 'map' | 'donor' ；產業：'all'|'land'|'other'
+let scope = 'all', sortKey = 'total';    // 範圍：'all'|縣市名 ；排序：'total'|'recip'
 const CAND = window.CAND_DATA || {};     // 候選人金主結構（姓名|職位|選區|年）
 const IND_COLORS = {"建商地產":"#A6392C","營造工程":"#b8a98c","其他":"#C9CFD4"};
 const extLink=(url,t)=>`<a class="ext" href="${url}" target="_blank" rel="noopener" title="${t}" onclick="event.stopPropagation()">↗</a>`;
@@ -522,29 +536,44 @@ function natStats(){
 }
 
 // ===== 金主透視：企業跨選區捐贈網絡 =====
-function companyCard(c, i){
-  const tag = c.land ? `<span class="tag land">${c.ind}</span>`
-                     : `<span class="tag other">${c.ind}</span>`;
-  const body = c.to.map(d=>{
-    const k=`${d.name}|${d.office}|${d.district}|${d.year}`;
-    const has=CAND[k];
+function companyBody(c){
+  let to=c.to;
+  if(!to && companyIndex.has(c.key)) to=companyIndex.get(c.key).to;
+  if(!to||!to.length) return '';
+  return to.map(d=>{
+    const k=`${d.name}|${d.office}|${d.district}|${d.year}`; const has=CAND[k];
     return `<div class="dline${has?' clickable':''}"${has?` data-cand="${k}"`:''}>
        <span class="dto">${pDot(d.party)}${d.name}</span>
        <span class="dctx">${d.office} · ${d.district||'—'} · ${d.year}</span>
        <span class="damt">${fmtNT(d.amount)}</span></div>`;
   }).join('');
-  return `<div class="company" data-key="${c.key}">
+}
+function companyCard(c, i){
+  const tag = c.land ? `<span class="tag land">${c.ind}</span>`
+                     : `<span class="tag other">${c.ind}</span>`;
+  const cross = (c.parties&&c.parties.length>=2)?`<span class="cross">跨 ${c.parties.length} 黨</span>`:'';
+  const body = companyBody(c);
+  const exp = !!body;
+  return `<div class="company${exp?'':' flat'}" data-key="${c.key}">
      <div class="company-hd">
        <span class="rank">${i+1}</span>
        <span class="cname">${c.name||'（未具名）'}${tag}${c.id?`<span class="id">統編 ${c.id}</span>`:''}${companyExt(c.id)}</span>
-       <span class="cmeta">捐 ${c.n_recip} 位${c.parties&&c.parties.length>=2?`<span class="cross">跨 ${c.parties.length} 黨</span>`:''}<b>${fmtNT(c.total)}</b></span>
-       <span class="chev">▸</span>
+       <span class="cmeta">捐 ${c.n_recip} 位${cross}<b>${fmtNT(c.total)}</b></span>
+       <span class="chev">${exp?'▸':''}</span>
      </div>
-     <div class="company-body">${body}</div>
+     ${exp?`<div class="company-body">${body}</div>`:''}
    </div>`;
 }
+function applyFilterSort(arr){
+  let list = arr.filter(c => indFilter==='all' ? true : indFilter==='land' ? c.land : !c.land);
+  list = list.slice().sort((a,b)=> sortKey==='recip'
+     ? (b.n_recip-a.n_recip || b.total-a.total) : (b.total-a.total));
+  return list;
+}
 function renderCompanies(highlightKey){
-  let list = (indFilter==='land') ? companies.filter(c=>c.land) : companies.slice();
+  const inCounty = scope!=='all';
+  const src = inCounty ? ((D.county_corp&&D.county_corp[scope])||[]) : companies;
+  let list = applyFilterSort(src);
   if(highlightKey){
     const i = list.findIndex(c=>c.key===highlightKey);
     if(i>0){ list.unshift(list.splice(i,1)[0]); }
@@ -553,9 +582,11 @@ function renderCompanies(highlightKey){
   const CAP=400, shown=list.slice(0,CAP);
   document.getElementById('companyList').innerHTML =
      shown.map((c,i)=>companyCard(c,i)).join('') || '<p class="hint">查無資料。</p>';
+  const indLabel = indFilter==='land'?'土地開發・建商':indFilter==='other'?'其他產業':'全部產業';
   document.getElementById('donorCount').textContent =
-     `${list.length.toLocaleString()} 家企業捐給 2 位以上候選人`
-     + (list.length>CAP?`（顯示前 ${CAP} 家）`:'');
+     `${inCounty?scope:'全國'}・${indLabel}：${list.length.toLocaleString()} 家企業`
+     + (inCounty?'（依捐贈金額）':'（捐 2 位以上候選人）')
+     + (list.length>CAP?`｜前 ${CAP}`:'');
   if(highlightKey){
     const el=document.querySelector(`#companyList .company[data-key="${CSS.escape(highlightKey)}"]`);
     if(el){ el.classList.add('open'); el.scrollIntoView({behavior:'smooth',block:'center'}); }
@@ -577,6 +608,18 @@ document.getElementById('indFilter').addEventListener('click',e=>{
   document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x===b));
   renderCompanies();
 });
+// 範圍（縣市）下拉
+const scopeSel=document.getElementById('scopeSel');
+scopeSel.innerHTML='<option value="all">全國</option>'+
+  counties.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+scopeSel.addEventListener('change',()=>{ scope=scopeSel.value; renderCompanies(); });
+// 排序
+document.getElementById('sortSel').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  sortKey=b.dataset.s;
+  document.querySelectorAll('#sortSel button').forEach(x=>x.classList.toggle('on',x===b));
+  renderCompanies();
+});
 document.getElementById('companyList').addEventListener('click',e=>{
   const hd=e.target.closest('.company-hd'); if(!hd) return;
   hd.parentElement.classList.toggle('open');
@@ -585,7 +628,7 @@ document.getElementById('companyList').addEventListener('click',e=>{
 panel.addEventListener('click',e=>{
   const row=e.target.closest('.cand.donor.linked[data-corpkey]'); if(!row) return;
   const key=row.dataset.corpkey; if(!companyIndex.has(key)) return;
-  indFilter='all';
+  indFilter='all'; scope='all'; scopeSel.value='all';
   document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x.dataset.f==='all'));
   setView('donor', key);
 });

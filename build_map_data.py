@@ -416,6 +416,57 @@ def build_company_registry(norm_dir: Path, party_map: dict):
     return companies
 
 
+def build_county_corp(norm_dir: Path, top_n=40):
+    """各縣市的企業（營利事業）金主排名，依捐贈總額排序（跨職位合計）。"""
+    cc: dict[str, dict] = {}
+    for layer in LAYERS:
+        p = norm_dir / f"transactions_{layer['year']}.csv"
+        if not p.exists():
+            continue
+        types = set(layer["types"])
+        seen = set()
+        with p.open(encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                if r["direction"] != "income" or r["election_type"] not in types:
+                    continue
+                if donor_type(r["account_subject"]) != "營利事業":
+                    continue
+                county = norm_county(r["electoral_district"])
+                if not county or county in ("山地原住民", "平地原住民"):
+                    continue
+                cid = (r["counterparty_id"] or "").strip()
+                cname = (r["counterparty"] or "").strip()
+                key = cid if (cid.isdigit() and len(cid) == 8) else cname
+                if not key:
+                    continue
+                cand = r["candidate"].strip()
+                try:
+                    amt = float(r["amount"] or 0)
+                except ValueError:
+                    amt = 0.0
+                dd = (county, key, cand, r["txn_date_roc"], r["amount"])
+                if dd in seen:
+                    continue
+                seen.add(dd)
+                e = cc.setdefault(county, {}).get(key)
+                if not e:
+                    ind, land = classify_industry(cname)
+                    e = {"key": key, "name": cname,
+                         "id": cid if (cid.isdigit() and len(cid) == 8) else "",
+                         "ind": ind, "land": land, "total": 0.0, "recips": set()}
+                    cc[county][key] = e
+                e["total"] += amt
+                if cand:
+                    e["recips"].add(cand)
+    out = {}
+    for county, store in cc.items():
+        items = sorted(store.values(), key=lambda e: -e["total"])[:top_n]
+        out[county] = [{"key": e["key"], "name": e["name"], "id": e["id"],
+                        "ind": e["ind"], "land": e["land"], "total": round(e["total"]),
+                        "n_recip": len(e["recips"])} for e in items]
+    return out
+
+
 def aggregate_layer(csv_path: Path, types: set[str]):
     """彙總某 CSV 中、屬於 types 的收入；回傳 (per_county, national)。
     以 (候選人,日期,對象,金額,科目) 去重，減輕更正/補申報重複計算。
@@ -589,6 +640,7 @@ def main():
                            key=lambda c: -c["layers"][offices[0]["key"]]["total"]),
         "companies": companies,
         "party_summary": party_summary,
+        "county_corp": build_county_corp(norm),
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
