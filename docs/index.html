@@ -169,11 +169,24 @@
     border-bottom:1px solid var(--line)}
   .sr-item:last-child{border-bottom:none}
   .sr-item:hover{background:var(--panel-soft)}
+  .sr-badge{font-size:10px; letter-spacing:.04em; padding:1px 8px; border-radius:999px;
+    flex:none; white-space:nowrap}
+  .sr-badge.cand{background:var(--midori-soft); color:var(--midori-solid)}
+  .sr-badge.corp{background:var(--shu-soft); color:var(--shu-solid)}
   .sr-name{font-family:var(--gothic); font-weight:500; color:var(--ink-strong); font-size:14px}
   .sr-ctx{font-size:11.5px; color:var(--ink-faint)}
   .sr-amt{margin-left:auto; font-family:var(--latin); font-weight:600; font-size:14px;
     color:var(--shu-solid); letter-spacing:0}
   .sr-empty{padding:14px 18px; color:var(--ink-faint); font-size:13px}
+  .statement{background:var(--panel); border:1px solid var(--line);
+    border-left:3px solid var(--midori-solid); padding:24px 30px; margin-top:42px; max-width:920px}
+  .statement .st-title{font-family:var(--serif); font-weight:600; color:var(--ink-strong);
+    font-size:18px; letter-spacing:.04em; margin-bottom:12px}
+  .statement .st-title .en{font-family:var(--latin); font-style:italic; font-weight:500;
+    font-size:14px; color:var(--ink-faint); margin-left:10px; letter-spacing:.04em}
+  .statement p{margin:0 0 10px; font-size:13.5px; line-height:2; color:#555}
+  .statement p:last-child{margin-bottom:0}
+  .statement b{color:var(--ink-strong); font-weight:500}
   .donor-bar{display:flex; align-items:center; gap:10px 14px; margin-bottom:4px; flex-wrap:wrap}
   .sel{font-family:var(--body); font-size:12px; letter-spacing:var(--ls); color:var(--ink);
     border:1px solid var(--line); border-radius:999px; padding:7px 14px;
@@ -296,7 +309,7 @@
 
   <div class="search-wrap">
     <input id="candSearch" class="search-input" type="text" autocomplete="off"
-      placeholder="🔍 查詢候選人姓名 —— 看他／她的金主與受捐贈狀況（含原住民立委）…">
+      placeholder="🔍 查詢候選人 或 公司／企業（可用統編）—— 看受捐贈狀況與捐贈網絡…">
     <div id="candResults" class="search-results" hidden></div>
   </div>
 
@@ -379,6 +392,14 @@
   <div class="modal" id="candModal" hidden>
     <div class="modal-card" id="candCard"></div>
   </div>
+
+  <section class="statement">
+    <div class="st-title">聲明與理念<span class="en">why this exists</span></div>
+    <p>本站所列政治獻金，均為依《政治獻金法》<b>登記在案</b>、依法取得的政治性捐助；列入本站<b>不代表任何不法或負面評價</b>。</p>
+    <p>所有資訊源自<b>政府公開資料</b>（監察院政治獻金公開查閱平臺、中央選舉委員會、財政部營業稅籍登記），僅供<b>研究與公共監督</b>等正當用途；本站<b>無意影響任何選舉，亦不為任何候選人或政黨背書</b>。</p>
+    <p>我們相信透明能帶來改變：期望競選經費總額能<b>逐步下降</b>，讓選舉回歸<b>政策論述</b>，而非比拚知名度與行銷投放；也期待競選看板等公共空間資源能被<b>妥善規範與管理</b>。</p>
+    <p>個人捐贈者之個資多依規定隱碼，敬請<b>勿用於騷擾、徵信或其他不正當目的</b>。資料如有出入，以監察院等主管機關公告為準。</p>
+  </section>
 
   <footer>
     <b>資料來源</b>：監察院政治獻金公開查閱平臺（ardata.cy.gov.tw），經本專案
@@ -849,28 +870,37 @@ candModal.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){candModal.hidden=true; searchResults.hidden=true;} });
 
-// ===== 候選人搜尋 =====
-const CAND_LIST=Object.entries(CAND).map(([key,d])=>
-  ({key,name:d.name,office:d.office,district:d.district,year:d.year,party:d.party,total:d.total}));
+// ===== 統一搜尋：候選人 + 企業金主 =====
+const SEARCH_INDEX=[
+  ...Object.entries(CAND).map(([key,d])=>({t:'cand',key,name:d.name,party:d.party,total:d.total,
+     ctx:`${d.office}·${d.district}·${d.year}${d.party?'·'+d.party:''}`})),
+  ...companies.map(co=>({t:'corp',key:co.key,name:co.name,id:co.id||'',total:co.total,
+     ctx:`${co.ind}·捐 ${co.n_recip} 位候選人${co.id?'·統編 '+co.id:''}`}))
+];
 const searchInput=document.getElementById('candSearch');
 const searchResults=document.getElementById('candResults');
 function runSearch(q){
   q=(q||'').trim();
   if(!q){ searchResults.hidden=true; return; }
-  const m=CAND_LIST.filter(c=>c.name.includes(q)).sort((a,b)=>b.total-a.total).slice(0,30);
+  const m=SEARCH_INDEX.filter(x=>x.name.includes(q)||(x.id&&x.id.includes(q)))
+     .sort((a,b)=>b.total-a.total).slice(0,30);
   searchResults.innerHTML = m.length
-    ? m.map(c=>`<div class="sr-item" data-key="${c.key}">
-        <span class="sr-name">${pDot(c.party)}${c.name}</span>
-        <span class="sr-ctx">${c.office}·${c.district}·${c.year}${c.party?'·'+c.party:''}</span>
-        <span class="sr-amt">${fmtNT(c.total)}</span></div>`).join('')
-    : '<div class="sr-empty">查無此候選人（僅收錄收入 ≥ 5 萬之申報者）</div>';
+    ? m.map(x=>`<div class="sr-item" data-t="${x.t}" data-key="${x.key}">
+        <span class="sr-badge ${x.t}">${x.t==='cand'?'候選人':'企業'}</span>
+        <span class="sr-name">${x.t==='cand'?pDot(x.party):''}${x.name}</span>
+        <span class="sr-ctx">${x.ctx}</span>
+        <span class="sr-amt">${fmtNT(x.total)}</span></div>`).join('')
+    : '<div class="sr-empty">查無資料（候選人收錄收入 ≥ 5 萬者；企業收錄捐 2 位以上候選人者）</div>';
   searchResults.hidden=false;
 }
 searchInput.addEventListener('input',e=>runSearch(e.target.value));
 searchInput.addEventListener('focus',e=>{ if(e.target.value.trim()) runSearch(e.target.value); });
 searchResults.addEventListener('click',e=>{
   const it=e.target.closest('.sr-item'); if(!it) return;
-  openCandidate(it.dataset.key); searchResults.hidden=true;
+  searchResults.hidden=true; searchInput.value='';
+  if(it.dataset.t==='cand'){ openCandidate(it.dataset.key); }
+  else { indFilter='all'; scope='all'; scopeSel.value='all'; indSel.value='all';
+         setView('donor', it.dataset.key); }
 });
 document.addEventListener('click',e=>{ if(!e.target.closest('.search-wrap')) searchResults.hidden=true; });
 
