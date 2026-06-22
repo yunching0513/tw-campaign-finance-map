@@ -202,6 +202,74 @@ def classify_industry(name: str):
     return "其他", False
 
 
+def build_candidate_registry(norm_dir: Path, floor=50000, top_n=15):
+    """每位候選人（依 姓名|職位|選區|年）的金主結構：
+    收入總額、來源類別占比、企業金主之產業分布、收受最多的前 N 位金主。
+    僅收錄收入 >= floor 的候選人，控制檔案大小。"""
+    cands: dict[str, dict] = {}
+    for layer in LAYERS:
+        p = norm_dir / f"transactions_{layer['year']}.csv"
+        if not p.exists():
+            continue
+        types, label, yr = set(layer["types"]), layer["label"], layer["year"] + 1911
+        seen = set()
+        with p.open(encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                if r["direction"] != "income" or r["election_type"] not in types:
+                    continue
+                cand = r["candidate"].strip()
+                if not cand:
+                    continue
+                district = norm_county(r["electoral_district"])
+                key = f"{cand}|{label}|{district}|{yr}"
+                try:
+                    amt = float(r["amount"] or 0)
+                except ValueError:
+                    amt = 0.0
+                dt = donor_type(r["account_subject"])
+                dname = (r["counterparty"] or "").strip()
+                did = (r["counterparty_id"] or "").strip()
+                dd = (key, dname, did, r["txn_date_roc"], r["amount"], r["account_subject"])
+                if dd in seen:
+                    continue
+                seen.add(dd)
+                c = cands.get(key)
+                if not c:
+                    c = {"name": cand, "office": label, "district": district, "year": yr,
+                         "total": 0.0, "by_type": {t: 0.0 for t in DONOR_TYPES},
+                         "corp_ind": {"建商地產": 0.0, "營造工程": 0.0, "其他": 0.0},
+                         "donors": {}}
+                    cands[key] = c
+                c["total"] += amt
+                c["by_type"][dt] += amt
+                if dt == "營利事業":
+                    ind, _ = classify_industry(dname)
+                    c["corp_ind"][ind] += amt
+                dk = (did if (did.isdigit() and len(did) == 8) else dname, dt)
+                e = c["donors"].get(dk)
+                if not e:
+                    e = {"name": dname or ("匿名" if dt == "匿名" else "（未具名）"),
+                         "type": dt,
+                         "ind": classify_industry(dname)[0] if dt == "營利事業" else "",
+                         "amt": 0.0}
+                    c["donors"][dk] = e
+                e["amt"] += amt
+
+    out = {}
+    for key, c in cands.items():
+        if c["total"] < floor:
+            continue
+        donors = sorted(c["donors"].values(), key=lambda e: -e["amt"])[:top_n]
+        out[key] = {"name": c["name"], "office": c["office"], "district": c["district"],
+                    "year": c["year"], "total": round(c["total"]),
+                    "n_donors": len(c["donors"]),
+                    "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
+                    "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
+                    "top_donors": [{"name": e["name"], "type": e["type"], "ind": e["ind"],
+                                    "amount": round(e["amt"])} for e in donors]}
+    return out
+
+
 def build_company_registry(norm_dir: Path):
     """跨選區/職位彙總每家企業的捐贈網絡（捐給哪些候選人）。
     僅收錄『捐給 2 位以上候選人』的企業（政商關係的重點），並標註產業。"""
@@ -407,6 +475,10 @@ def main():
     land_n = sum(1 for c in companies if c["land"])
     print(f"  跨候選人企業金主：{len(companies)} 家（土地開發相關 {land_n} 家）")
 
+    print("建立候選人金主結構…")
+    candidates = build_candidate_registry(norm)
+    print(f"  候選人（收入≥5萬）：{len(candidates)} 位")
+
     payload = {
         "meta": {"viewbox": list(viewbox), "donor_types": DONOR_TYPES,
                  "offices": offices,
@@ -421,6 +493,11 @@ def main():
     out.write_text("window.MAP_DATA = " + json.dumps(payload, ensure_ascii=False) + ";\n",
                    encoding="utf-8")
     print(f"\n已輸出 {out}  ({out.stat().st_size/1024:.0f} KB)")
+
+    cand_out = out.parent / "candidates.js"
+    cand_out.write_text("window.CAND_DATA = " + json.dumps(candidates, ensure_ascii=False) + ";\n",
+                        encoding="utf-8")
+    print(f"已輸出 {cand_out}  ({cand_out.stat().st_size/1024:.0f} KB)")
     print("層級：" + " / ".join(f"{o['label']}({o['year_ad']})" for o in offices))
 
 

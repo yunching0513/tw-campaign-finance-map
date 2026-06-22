@@ -193,6 +193,24 @@
   .dline .dctx{font-size:11.5px; color:var(--ink-faint); letter-spacing:.02em}
   .dline .damt{margin-left:auto; font-family:var(--latin); font-weight:600;
     font-size:15px; color:var(--shu-solid); letter-spacing:0}
+  .clickable{cursor:pointer; transition:background .2s var(--ease)}
+  .clickable:hover{background:var(--panel-soft)}
+  .clickable .nm,.dline.clickable .dto{text-decoration:underline;
+    text-decoration-color:var(--line); text-underline-offset:3px}
+
+  /* 候選人金主彈窗 */
+  .modal{position:fixed; inset:0; background:rgba(40,38,36,.45); z-index:50;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:46px 20px; overflow:auto}
+  .modal[hidden]{display:none}
+  .modal-card{background:var(--panel); border:1px solid var(--line);
+    max-width:600px; width:100%; padding:34px 38px 36px; position:relative}
+  .modal-x{position:absolute; top:14px; right:18px; border:none; background:none;
+    font-size:26px; line-height:1; color:var(--ink-faint); cursor:pointer}
+  .modal-x:hover{color:var(--ink-strong)}
+  .cand-stats{display:flex; gap:52px; margin:8px 0 2px}
+  .dtag{font-size:10px; letter-spacing:.04em; padding:2px 9px; border-radius:999px;
+    margin-left:9px; white-space:nowrap; vertical-align:middle}
 
   @media(max-width:880px){
     .wrap{padding:36px 20px 60px}
@@ -255,6 +273,10 @@
     <div id="companyList"></div>
   </div>
 
+  <div class="modal" id="candModal" hidden>
+    <div class="modal-card" id="candCard"></div>
+  </div>
+
   <footer>
     <b>資料來源</b>：監察院政治獻金公開查閱平臺（ardata.cy.gov.tw），經本專案
     <code>ardata_scraper.py</code> 下載並正規化。本圖為<b>視覺化雛形</b>。<br>
@@ -267,6 +289,7 @@
 </div>
 
 <script src="map_data.js"></script>
+<script src="candidates.js"></script>
 <script>
 const TYPE_COLORS = {
   "個人":"#A6392C","營利事業":"#2E6B4E","政黨":"#b8a98c",
@@ -291,6 +314,8 @@ const counties = D.counties;
 const companies = D.companies || [];     // 跨選區企業金主（捐 2 位以上候選人）
 const companyIndex = new Map(companies.map(c=>[c.key,c]));
 let view = 'map', indFilter = 'land';    // 'map' | 'donor' ；產業：'land' | 'all'
+const CAND = window.CAND_DATA || {};     // 候選人金主結構（姓名|職位|選區|年）
+const IND_COLORS = {"建商地產":"#A6392C","營造工程":"#b8a98c","其他":"#C9CFD4"};
 
 function layerOf(c){ return (c.layers && c.layers[office]) ||
   {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
@@ -367,12 +392,16 @@ function stackHTML(byType,total){
       <b>${pct.toFixed(pct<10?1:0)}%</b></span>`;}).join('');
   return `<div class="stack">${bars}</div><div class="keys">${keys}</div>`;
 }
-function candHTML(top){
+function candHTML(top, office, district, year){
   if(!top||!top.length) return '<p class="hint">此職位於此區無申報明細。</p>';
-  return top.map((c,i)=>`<div class="cand">
+  return top.map((c,i)=>{
+    const key=`${c.name}|${office}|${district}|${year}`;
+    const has=CAND[key];
+    return `<div class="cand${has?' clickable':''}"${has?` data-cand="${key}"`:''}>
      <span class="rank">${i+1}</span>
      <span class="nm">${c.name}</span>
-     <span class="amt">${fmtNT(c.amount)}</span></div>`).join('');
+     <span class="amt">${fmtNT(c.amount)}</span></div>`;
+  }).join('');
 }
 function corpHTML(list){
   if(!list||!list.length) return '<p class="hint">此職位於此區無企業（營利事業）捐贈。</p>';
@@ -398,7 +427,7 @@ function render(c){
     <div class="big">${fmtNT(L.total)}</div>
     <div class="section-t">捐贈來源組成 <span class="en">by source</span></div>
     ${stackHTML(L.by_type,L.total)}
-    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top)}` : '' }
+    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top, off.label, c.name, off.year_ad)}` : '' }
     <div class="section-t">主要企業金主 <span class="en">top corporate donors</span></div>
     ${corpHTML(L.top_corp)}
     <p class="hint">${ c ? '「→」為該企業主要捐贈對象；點其他縣市切換，點空白處回全國總覽。'
@@ -454,10 +483,14 @@ function natStats(){
 function companyCard(c, i){
   const tag = c.land ? `<span class="tag land">${c.ind}</span>`
                      : `<span class="tag other">${c.ind}</span>`;
-  const body = c.to.map(d=>`<div class="dline">
+  const body = c.to.map(d=>{
+    const k=`${d.name}|${d.office}|${d.district}|${d.year}`;
+    const has=CAND[k];
+    return `<div class="dline${has?' clickable':''}"${has?` data-cand="${k}"`:''}>
        <span class="dto">${d.name}</span>
        <span class="dctx">${d.office} · ${d.district||'—'} · ${d.year}</span>
-       <span class="damt">${fmtNT(d.amount)}</span></div>`).join('');
+       <span class="damt">${fmtNT(d.amount)}</span></div>`;
+  }).join('');
   return `<div class="company" data-key="${c.key}">
      <div class="company-hd">
        <span class="rank">${i+1}</span>
@@ -514,6 +547,62 @@ panel.addEventListener('click',e=>{
   document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x.dataset.f==='all'));
   setView('donor', key);
 });
+
+// ===== 候選人金主彈窗 =====
+function donorTag(x){
+  if(x.type==='營利事業'){
+    const c=IND_COLORS[x.ind]||IND_COLORS['其他'];
+    return `<span class="dtag" style="background:${c}22;color:#6a3a33">${x.ind}</span>`;
+  }
+  const c=TYPE_COLORS[x.type]||'#C9CFD4';
+  return `<span class="dtag" style="background:${c}26;color:#555">${x.type}</span>`;
+}
+function industryBar(ci){
+  const tot=Object.values(ci).reduce((a,b)=>a+(b||0),0);
+  if(!tot) return '';
+  const order=['建商地產','營造工程','其他'];
+  const bars=order.map(k=>{const v=ci[k]||0,w=v/tot*100;
+    return w>0.3?`<span style="width:${w}%;background:${IND_COLORS[k]}"></span>`:''}).join('');
+  const keys=order.filter(k=>ci[k]).map(k=>`<span class="key"><span class="dot" style="background:${IND_COLORS[k]}"></span>${k} <b>${fmtNT(ci[k])}</b></span>`).join('');
+  return `<div class="section-t">企業金主・產業分布 <span class="en">corporate by industry</span></div>
+    <div class="stack">${bars}</div><div class="keys">${keys}</div>`;
+}
+function openCandidate(key){
+  const d=CAND[key], card=document.getElementById('candCard');
+  if(!d){
+    card.innerHTML=`<button class="modal-x" data-close>×</button>
+      <h2 style="margin-top:6px">${key.split('|')[0]}</h2>
+      <p class="hint">此候選人收入未達門檻（5 萬）或查無金主明細。</p>`;
+  }else{
+    const donors=d.top_donors.map((x,i)=>`<div class="cand">
+       <span class="rank">${i+1}</span>
+       <span class="nm">${x.name}${donorTag(x)}</span>
+       <span class="amt">${fmtNT(x.amount)}</span></div>`).join('');
+    card.innerHTML=`<button class="modal-x" data-close>×</button>
+      <div class="kicker">Candidate / 候選人</div>
+      <h2>${d.name}</h2>
+      <div class="sub">${d.office} · ${d.district} · ${d.year} 年</div>
+      <div class="cand-stats">
+        <div><div class="biglabel">募得總額 · raised</div><div class="big">${fmtNT(d.total)}</div></div>
+        <div><div class="biglabel">金主人數 · donors</div><div class="big" style="color:var(--ink-strong)">${fmtInt(d.n_donors)}<span class="u">位</span></div></div>
+      </div>
+      <div class="section-t">個人 vs 企業 <span class="en">by source</span></div>
+      ${stackHTML(d.by_type,d.total)}
+      ${industryBar(d.corp_ind)}
+      <div class="section-t">主要金主前 ${d.top_donors.length} <span class="en">top donors</span></div>
+      ${donors}
+      <p class="hint">為該候選人申報之捐贈收入明細彙總；個人金主以姓名歸戶，企業以統編歸戶。</p>`;
+  }
+  document.getElementById('candModal').hidden=false;
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-cand]'); if(el) openCandidate(el.dataset.cand);
+});
+const candModal=document.getElementById('candModal');
+candModal.addEventListener('click',e=>{
+  if(e.target===candModal || e.target.closest('[data-close]')) candModal.hidden=true;
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') candModal.hidden=true; });
 
 natStats(); render(null);
 </script>
