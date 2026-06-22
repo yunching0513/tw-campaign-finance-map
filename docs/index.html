@@ -133,12 +133,14 @@
     color:var(--ink-faint); font-size:12px; line-height:2; max-width:900px}
   footer b{color:#555; font-weight:500}
   .toggle{display:inline-flex; border:1px solid var(--line); border-radius:999px;
-    overflow:hidden; margin-left:auto}
+    overflow:hidden}
   .toggle button{font-family:var(--body); font-size:11px; letter-spacing:var(--ls);
-    padding:6px 16px; border:none; background:var(--panel); color:var(--ink-faint);
+    padding:6px 15px; border:none; background:var(--panel); color:var(--ink-faint);
     cursor:pointer; transition:.25s var(--ease)}
   .toggle button.on{background:var(--midori-solid); color:#fff}
-  .topbar{display:flex; align-items:center; gap:14px; margin-bottom:14px}
+  #officeToggle button.on{background:var(--shu-solid)}
+  .topbar{display:flex; align-items:center; gap:10px 14px; margin-bottom:14px;
+    flex-wrap:wrap}
   .topbar .mt{font-size:12px; letter-spacing:var(--ls-wide); color:var(--ink-faint);
     text-transform:uppercase}
 
@@ -155,14 +157,18 @@
   <p class="eyebrow">金錢的地理學<span class="en">Follow the Money · Taiwan</span></p>
   <h1>政治獻金與牠們的產地</h1>
   <p class="lede">每一筆政治獻金，都從某個地方流向某位候選人。這張地圖以縣市為單位，
-  呈現各地候選人申報的政治獻金<b>收入規模</b>與<b>來源組成</b>。</p>
+  呈現各地候選人申報的政治獻金<b>收入規模</b>與<b>來源組成</b>。可切換職位層級——
+  <b>縣市長、議員、鄉鎮市長、村里長（2022 九合一）</b>與<b>立法委員（2024）</b>。</p>
 
   <div class="topbar">
-    <span class="mt" id="yearTag">2022 九合一地方選舉</span>
+    <span class="mt">職位</span>
+    <div class="toggle" id="officeToggle"></div>
+    <span class="mt" style="margin-left:8px">指標</span>
     <div class="toggle" id="metricToggle">
       <button data-m="total" class="on">捐贈總額</button>
       <button data-m="corp">企業占比</button>
     </div>
+    <span class="mt" id="yearTag" style="margin-left:auto"></span>
   </div>
 
   <div class="stats" id="natStats"></div>
@@ -181,7 +187,8 @@
     <b>資料來源</b>：監察院政治獻金公開查閱平臺（ardata.cy.gov.tw），經本專案
     <code>ardata_scraper.py</code> 下載並正規化。本圖為<b>視覺化雛形</b>。<br>
     <b>口徑</b>：金額為各候選人申報之「捐贈收入」明細加總，依候選人登記之選舉區（縣市）歸戶；
-    立委、議員之選舉區僅到縣市層級。同一候選人若有首次／賸餘／更正申報，均計入。<br>
+    立委、議員之選舉區僅到縣市層級。職位層級中立法委員為 2024 年，其餘為 2022 九合一。
+    已去除完全重複列以減輕更正／補申報之重複計算；立委不分區、原住民計入全國但不歸於縣市。<br>
     <b>限制</b>：個人捐贈者之身分證、完整地址多經隱碼；公司統一編號多為明碼。
     資料僅供研究與監督等正當用途，再利用請標註來源。
   </footer>
@@ -206,21 +213,24 @@ const D = window.MAP_DATA;
 if(!D){document.getElementById('panel').innerHTML='<p>找不到 map_data.js，請先執行 build_map_data.py</p>';}
 
 let metric = 'total';
+const offices = D.meta.offices;          // [{key,label,year_ad,types}]
+let office = offices[0].key;             // 預設第一個職位（縣市長）
 const counties = D.counties;
-const byName = Object.fromEntries(counties.map(c=>[c.name,c]));
 
-// 色階：對數縮放，緩解臺北市等極端值
-function corpRatio(c){return c.total? c.by_type["營利事業"]/c.total : 0;}
-function metricVal(c){return metric==='total'? c.total : corpRatio(c);}
+function layerOf(c){ return (c.layers && c.layers[office]) ||
+  {total:0, by_type:{}, txn:0, candidate_count:0, top:[]}; }
+function corpRatio(c){ const L=layerOf(c);
+  return L.total? (L.by_type["營利事業"]||0)/L.total : 0; }
+function metricVal(c){ return metric==='total'? layerOf(c).total : corpRatio(c); }
 function colorScale(){
   const vals = counties.map(metricVal).filter(v=>v>0);
+  if(!vals.length) return ()=>0;
   if(metric==='total'){
     const lo=Math.log(Math.min(...vals)+1), hi=Math.log(Math.max(...vals)+1);
     return v=> v<=0?0:(Math.log(v+1)-lo)/(hi-lo||1);
-  }else{
-    const hi=Math.max(...vals);
-    return v=> hi? v/hi : 0;
   }
+  const hi=Math.max(...vals);
+  return v=> hi? v/hi : 0;
 }
 function lerpHex(a,b,t){
   const pa=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
@@ -229,11 +239,12 @@ function lerpHex(a,b,t){
   return '#'+c.map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 function fill(c){
+  if(layerOf(c).total<=0) return '#ECECEC';
   const t = colorScale()(metricVal(c));
   const ramp = metric==='total'
-     ? ['#F3E7E3','#A6392C']       // 朱
+     ? ['#F3E7E3','#A6392C']       // 朱（捐贈總額）
      : ['#E4EAE5','#2E6B4E'];      // 緑（企業占比）
-  return c.total? lerpHex(ramp[0],ramp[1], Math.pow(t,.85)) : '#ECECEC';
+  return lerpHex(ramp[0],ramp[1], Math.pow(Math.max(t,0),.85));
 }
 
 // 繪製地圖
@@ -252,7 +263,7 @@ counties.forEach(c=>{
   if(!c.path) return;
   const p=document.createElementNS(NS,'path');
   p.setAttribute('d',c.path); p.setAttribute('class','county'); p.dataset.name=c.name;
-  p.setAttribute('fill',fill(c));
+  p.style.fill=fill(c);   // 用 inline style，才不會被 .county{fill} 規則蓋掉
   p.addEventListener('mouseenter',()=>{ if(!selLock) render(c); });
   p.addEventListener('click',()=>{ selLock=true; select(c); });
   svg.appendChild(p);
@@ -260,7 +271,7 @@ counties.forEach(c=>{
 });
 
 function recolor(){
-  counties.forEach(c=>{ if(c._el) c._el.setAttribute('fill',fill(c)); });
+  counties.forEach(c=>{ if(c._el) c._el.style.fill=fill(c); });
 }
 function select(c){
   selected=c;
@@ -282,29 +293,42 @@ function stackHTML(byType,total){
   return `<div class="stack">${bars}</div><div class="keys">${keys}</div>`;
 }
 function candHTML(top){
-  if(!top||!top.length) return '<p class="hint">此區無申報明細。</p>';
+  if(!top||!top.length) return '<p class="hint">此職位於此區無申報明細。</p>';
   return top.map((c,i)=>`<div class="cand">
      <span class="rank">${i+1}</span>
-     <span class="nm">${c.name}</span><span class="ty">${c.type}</span>
+     <span class="nm">${c.name}</span>
      <span class="amt">${fmtNT(c.amount)}</span></div>`).join('');
 }
 function render(c){
+  const off = offices.find(o=>o.key===office);
   const isNat = !c;
-  const d = c || {name:'全臺灣', ...D.national, top:null};
+  const L = isNat ? D.national[office] : layerOf(c);
+  const name = isNat ? '全臺灣' : c.name;
   panel.innerHTML = `
     <div class="kicker">${isNat?'National Overview':'County / 縣市'}</div>
-    <h2>${d.name}</h2>
-    <div class="sub">${D.meta.year_ad} 年 · ${isNat?'全國合計':'候選人 '+fmtInt(d.candidate_count)+' 人 · 明細 '+fmtInt(d.txn)+' 筆'}</div>
+    <h2>${name}</h2>
+    <div class="sub">${off.label} · ${off.year_ad} 年 · ${isNat?'全國合計':'候選人 '+fmtInt(L.candidate_count)+' 人 · 明細 '+fmtInt(L.txn)+' 筆'}</div>
     <div class="biglabel">捐贈收入總額 · Total Raised</div>
-    <div class="big">${fmtNT(d.total)}</div>
+    <div class="big">${fmtNT(L.total)}</div>
     <div class="section-t">捐贈來源組成 <span class="en">by source</span></div>
-    ${stackHTML(d.by_type,d.total)}
-    ${ c ? `<div class="section-t">收受金額前六名 <span class="en">top recipients</span></div>${candHTML(d.top)}`
-         : `<p class="hint">將游標移到地圖上的縣市，或點擊鎖定，查看該地的捐贈來源與主要候選人。<br>
-            目前切換指標：<b>${metric==='total'?'捐贈總額':'企業捐贈占比'}</b>。</p>` }
-    ${ c ? `<p class="hint">點地圖其他縣市切換；點空白處回到全國總覽。</p>`:'' }
+    ${stackHTML(L.by_type,L.total)}
+    ${ c ? `<div class="section-t">${off.label}收受金額前六名 <span class="en">top recipients</span></div>${candHTML(L.top)}`
+         : `<p class="hint">點地圖縣市，查看該地的<b>${off.label}</b>捐贈來源與主要候選人。<br>
+            上方可切換職位（縣市長／議員／立委…）與指標（總額／企業占比）。</p>` }
+    ${ c ? `<p class="hint">點其他縣市切換；點空白處回到全國總覽。</p>`:'' }
   `;
 }
+
+// 職位層級切換
+const offToggle=document.getElementById('officeToggle');
+offToggle.innerHTML = offices.map((o,i)=>
+  `<button data-k="${o.key}" class="${i===0?'on':''}">${o.label}</button>`).join('');
+offToggle.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  office=b.dataset.k;
+  offToggle.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  recolor(); natStats(); render(selected);
+});
 
 // 指標切換
 document.getElementById('metricToggle').addEventListener('click',e=>{
@@ -321,15 +345,19 @@ document.getElementById('metricToggle').addEventListener('click',e=>{
 svg.addEventListener('click',e=>{ if(e.target===svg){selLock=false;selected=null;
   counties.forEach(x=>x._el&&x._el.classList.remove('sel')); render(null);} });
 
-// 全國數據條
+// 全國數據條（依目前職位）
 function natStats(){
-  const n=D.national;
-  const corp = n.by_type["營利事業"], indiv=n.by_type["個人"];
+  const off = offices.find(o=>o.key===office);
+  const n=D.national[office];
+  const indiv=n.by_type["個人"]||0, corp=n.by_type["營利事業"]||0;
+  const pind = n.total? (indiv/n.total*100).toFixed(1):'0';
+  const pcorp= n.total? (corp/n.total*100).toFixed(1):'0';
+  document.getElementById('yearTag').textContent = `${off.label} · ${off.year_ad} 年`;
   const cards=[
-    ['捐贈收入總額', fmtNT(n.total), `${D.meta.year_ad} 年全臺合計`],
+    [off.label+'捐贈總額', fmtNT(n.total), `${off.year_ad} 年全臺合計`],
     ['候選人', fmtInt(n.candidate_count)+'<span class="u">人</span>', '有申報之擬參選人'],
-    ['個人捐贈占比', (indiv/n.total*100).toFixed(1)+'<span class="u">%</span>', '來自自然人'],
-    ['企業捐贈占比', (corp/n.total*100).toFixed(1)+'<span class="u">%</span>', '來自營利事業'],
+    ['個人捐贈占比', pind+'<span class="u">%</span>', '來自自然人'],
+    ['企業捐贈占比', pcorp+'<span class="u">%</span>', '來自營利事業'],
   ];
   document.getElementById('natStats').innerHTML = cards.map(([k,v,s])=>
     `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
