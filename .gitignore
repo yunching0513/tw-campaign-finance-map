@@ -1,0 +1,17 @@
+# --- 原始資料與大型輸出（不上版控 / 不公開）---
+data/raw/
+data/normalized/*.csv
+data/*.geojson
+data/scrape.log
+
+# 注意：web/map_data.js 是「彙總後」的小檔，需要上版控以供網頁載入，故不在此排除。
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- 工具暫存 ---
+.playwright-mcp/
+.DS_Store
