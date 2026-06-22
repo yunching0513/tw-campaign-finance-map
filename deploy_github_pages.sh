@@ -44,7 +44,7 @@ touch docs/.nojekyll
 # 3) git init + commit -------------------------------------------------------
 [ -d .git ] || { echo "▶ git init"; git init -b main >/dev/null; }
 git add .gitignore ardata_scraper.py build_map_data.py requirements.txt \
-        README.md docs/ deploy_github_pages.sh 2>/dev/null || true
+        README.md DEPLOY.md docs/ deploy_github_pages.sh 2>/dev/null || true
 git commit -m "政治獻金與牠們的產地：臺灣縣市政治獻金地圖 (2022) + 下載/正規化工具" \
   >/dev/null 2>&1 && echo "▶ 已建立 commit" || echo "▶ (無新變更可提交)"
 
@@ -53,23 +53,23 @@ if git remote get-url origin >/dev/null 2>&1; then
   echo "▶ 推送到既有 origin"
   git push -u origin main
 else
-  echo "▶ 建立 GitHub repo「$REPO_NAME」($VISIBILITY) 並推送"
-  gh repo create "$REPO_NAME" --"$VISIBILITY" --source=. --push
+  echo "▶ 建立 GitHub repo ${REPO_NAME} (${VISIBILITY}) 並推送"
+  gh repo create "${REPO_NAME}" --"${VISIBILITY}" --source=. --push
 fi
 
 # 5) 啟用 GitHub Pages：main 分支 /docs --------------------------------------
 OWNER=$(gh api user -q .login)
 echo "▶ 啟用 GitHub Pages (main /docs)…"
-gh api -X POST "repos/$OWNER/$REPO_NAME/pages" \
+gh api -X POST "repos/${OWNER}/${REPO_NAME}/pages" \
      -f "source[branch]=main" -f "source[path]=/docs" >/dev/null 2>&1 \
-  || gh api -X PUT "repos/$OWNER/$REPO_NAME/pages" \
+  || gh api -X PUT "repos/${OWNER}/${REPO_NAME}/pages" \
        -f "source[branch]=main" -f "source[path]=/docs" >/dev/null 2>&1 \
   || echo "  (若失敗，請到 repo Settings ▸ Pages 手動設定 Source = main / docs)"
 
 # 6) 顯示網址 ----------------------------------------------------------------
 echo ""
 echo "✅ 完成！GitHub Pages 建置約需 1–2 分鐘後可開啟："
-URL=$(gh api "repos/$OWNER/$REPO_NAME/pages" -q .html_url 2>/dev/null || true)
-echo "   ${URL:-https://$OWNER.github.io/$REPO_NAME/}"
+URL=$(gh api "repos/${OWNER}/${REPO_NAME}/pages" -q .html_url 2>/dev/null || true)
+echo "   ${URL:-https://${OWNER}.github.io/${REPO_NAME}/}"
 echo ""
-echo "Repo： https://github.com/$OWNER/$REPO_NAME"
+echo "Repo： https://github.com/${OWNER}/${REPO_NAME}"
