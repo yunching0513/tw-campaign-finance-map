@@ -286,11 +286,7 @@
       <span class="mt">範圍</span>
       <select id="scopeSel" class="sel"></select>
       <span class="mt">產業</span>
-      <div class="toggle" id="indFilter">
-        <button data-f="all" class="on">全部</button>
-        <button data-f="land">土地開發・建商</button>
-        <button data-f="other">其他產業</button>
-      </div>
+      <select id="indSel" class="sel"></select>
       <span class="mt">排序</span>
       <div class="toggle" id="sortSel">
         <button data-s="total" class="on">捐贈總額</button>
@@ -349,7 +345,13 @@ const companyIndex = new Map(companies.map(c=>[c.key,c]));
 let view = 'map', indFilter = 'all';     // 'map' | 'donor' ；產業：'all'|'land'|'other'
 let scope = 'all', sortKey = 'total';    // 範圍：'all'|縣市名 ；排序：'total'|'recip'
 const CAND = window.CAND_DATA || {};     // 候選人金主結構（姓名|職位|選區|年）
-const IND_COLORS = {"建商地產":"#A6392C","營造工程":"#b8a98c","其他":"#C9CFD4"};
+const INDUSTRY_COLORS={
+  "建商地產":"#A6392C","營造工程":"#C58A3E","金融投資":"#2B5C9E","科技電子":"#1EA0A6",
+  "醫療生技":"#3A7D44","媒體廣告":"#8C5A8C","餐飲旅宿":"#C77B5A","批發貿易":"#B59A3E",
+  "製造工業":"#6E7F8C","運輸物流":"#5F8C72","能源環保":"#7E8C3D","農林漁牧":"#8A7A4E",
+  "其他":"#B0AAA0"};
+const INDUSTRIES=Object.keys(INDUSTRY_COLORS);
+const indColor=k=>INDUSTRY_COLORS[k]||INDUSTRY_COLORS['其他'];
 const extLink=(url,t)=>`<a class="ext" href="${url}" target="_blank" rel="noopener" title="${t}" onclick="event.stopPropagation()">↗</a>`;
 const companyExt=id=> id?extLink(`https://company.g0v.ronny.tw/id/${id}`,'查看公司登記資料（董監事・營業項目）'):'';
 const candExt=name=>extLink(`https://www.google.com/search?q=${encodeURIComponent(name+' 政治獻金')}`,'搜尋更多資訊');
@@ -549,8 +551,7 @@ function companyBody(c){
   }).join('');
 }
 function companyCard(c, i){
-  const tag = c.land ? `<span class="tag land">${c.ind}</span>`
-                     : `<span class="tag other">${c.ind}</span>`;
+  const tag = `<span class="tag" style="background:${indColor(c.ind)}22;color:#5b4d45">${c.ind}</span>`;
   const cross = (c.parties&&c.parties.length>=2)?`<span class="cross">跨 ${c.parties.length} 黨</span>`:'';
   const body = companyBody(c);
   const exp = !!body;
@@ -565,7 +566,8 @@ function companyCard(c, i){
    </div>`;
 }
 function applyFilterSort(arr){
-  let list = arr.filter(c => indFilter==='all' ? true : indFilter==='land' ? c.land : !c.land);
+  let list = arr.filter(c => indFilter==='all' ? true
+                            : indFilter==='land' ? c.land : c.ind===indFilter);
   list = list.slice().sort((a,b)=> sortKey==='recip'
      ? (b.n_recip-a.n_recip || b.total-a.total) : (b.total-a.total));
   return list;
@@ -582,7 +584,7 @@ function renderCompanies(highlightKey){
   const CAP=400, shown=list.slice(0,CAP);
   document.getElementById('companyList').innerHTML =
      shown.map((c,i)=>companyCard(c,i)).join('') || '<p class="hint">查無資料。</p>';
-  const indLabel = indFilter==='land'?'土地開發・建商':indFilter==='other'?'其他產業':'全部產業';
+  const indLabel = indFilter==='all'?'全部產業':indFilter==='land'?'土地開發・建商':indFilter;
   document.getElementById('donorCount').textContent =
      `${inCounty?scope:'全國'}・${indLabel}：${list.length.toLocaleString()} 家企業`
      + (inCounty?'（依捐贈金額）':'（捐 2 位以上候選人）')
@@ -602,12 +604,10 @@ function setView(v, highlightKey){
 document.getElementById('viewTabs').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(b) setView(b.dataset.v);
 });
-document.getElementById('indFilter').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b) return;
-  indFilter=b.dataset.f;
-  document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x===b));
-  renderCompanies();
-});
+const indSel=document.getElementById('indSel');
+indSel.innerHTML='<option value="all">全部產業</option><option value="land">土地開發・建商</option>'+
+  INDUSTRIES.map(k=>`<option value="${k}">${k}</option>`).join('');
+indSel.addEventListener('change',()=>{ indFilter=indSel.value; renderCompanies(); });
 // 範圍（縣市）下拉
 const scopeSel=document.getElementById('scopeSel');
 scopeSel.innerHTML='<option value="all">全國</option>'+
@@ -628,27 +628,26 @@ document.getElementById('companyList').addEventListener('click',e=>{
 panel.addEventListener('click',e=>{
   const row=e.target.closest('.cand.donor.linked[data-corpkey]'); if(!row) return;
   const key=row.dataset.corpkey; if(!companyIndex.has(key)) return;
-  indFilter='all'; scope='all'; scopeSel.value='all';
-  document.querySelectorAll('#indFilter button').forEach(x=>x.classList.toggle('on',x.dataset.f==='all'));
+  indFilter='all'; scope='all'; scopeSel.value='all'; indSel.value='all';
   setView('donor', key);
 });
 
 // ===== 候選人金主彈窗 =====
 function donorTag(x){
   if(x.type==='營利事業'){
-    const c=IND_COLORS[x.ind]||IND_COLORS['其他'];
+    const c=indColor(x.ind);
     return `<span class="dtag" style="background:${c}22;color:#6a3a33">${x.ind}</span>`;
   }
   const c=TYPE_COLORS[x.type]||'#C9CFD4';
   return `<span class="dtag" style="background:${c}26;color:#555">${x.type}</span>`;
 }
 function industryBar(ci){
-  const tot=Object.values(ci).reduce((a,b)=>a+(b||0),0);
+  const entries=Object.entries(ci).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const tot=entries.reduce((s,[,v])=>s+v,0);
   if(!tot) return '';
-  const order=['建商地產','營造工程','其他'];
-  const bars=order.map(k=>{const v=ci[k]||0,w=v/tot*100;
-    return w>0.3?`<span style="width:${w}%;background:${IND_COLORS[k]}"></span>`:''}).join('');
-  const keys=order.filter(k=>ci[k]).map(k=>`<span class="key"><span class="dot" style="background:${IND_COLORS[k]}"></span>${k} <b>${fmtNT(ci[k])}</b></span>`).join('');
+  const bars=entries.map(([k,v])=>{const w=v/tot*100;
+    return w>0.4?`<span style="width:${w}%;background:${indColor(k)}"></span>`:''}).join('');
+  const keys=entries.map(([k,v])=>`<span class="key"><span class="dot" style="background:${indColor(k)}"></span>${k} <b>${fmtNT(v)}</b></span>`).join('');
   return `<div class="section-t">企業金主・產業分布 <span class="en">corporate by industry</span></div>
     <div class="stack">${bars}</div><div class="keys">${keys}</div>`;
 }
