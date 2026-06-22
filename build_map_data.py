@@ -543,6 +543,56 @@ def build_county_corp(norm_dir: Path, top_n=40):
     return out
 
 
+def build_industry_totals(norm_dir: Path):
+    """各產業（營利事業）捐贈總額，依職位（含全部）彙總。
+    回傳 {scope: [{ind, total, companies, txn} 依總額排序]}。"""
+    data: dict = {}
+
+    def add(scope, ind, amt, comp):
+        s = data.setdefault(scope, {}).setdefault(
+            ind, {"total": 0.0, "companies": set(), "txn": 0})
+        s["total"] += amt
+        s["txn"] += 1
+        if comp:
+            s["companies"].add(comp)
+
+    for layer in LAYERS:
+        p = norm_dir / f"transactions_{layer['year']}.csv"
+        if not p.exists():
+            continue
+        types, label = set(layer["types"]), layer["label"]
+        seen = set()
+        with p.open(encoding="utf-8-sig") as f:
+            for r in csv.DictReader(f):
+                if r["direction"] != "income" or r["election_type"] not in types:
+                    continue
+                if donor_type(r["account_subject"]) != "營利事業":
+                    continue
+                cid = (r["counterparty_id"] or "").strip()
+                cname = (r["counterparty"] or "").strip()
+                comp = cid if (cid.isdigit() and len(cid) == 8) else cname
+                dd = (label, comp, r["candidate"], r["txn_date_roc"], r["amount"])
+                if dd in seen:
+                    continue
+                seen.add(dd)
+                try:
+                    amt = float(r["amount"] or 0)
+                except ValueError:
+                    amt = 0.0
+                ind = industry_of(cname, cid)[0]
+                add("全部", ind, amt, comp)
+                add(label, ind, amt, comp)
+
+    out = {}
+    for scope, d in data.items():
+        rows = [{"ind": k, "total": round(v["total"]),
+                 "companies": len(v["companies"]), "txn": v["txn"]}
+                for k, v in d.items()]
+        rows.sort(key=lambda x: -x["total"])
+        out[scope] = rows
+    return out
+
+
 def aggregate_layer(csv_path: Path, types: set[str]):
     """彙總某 CSV 中、屬於 types 的收入；回傳 (per_county, national)。
     以 (候選人,日期,對象,金額,科目) 去重，減輕更正/補申報重複計算。
@@ -737,6 +787,7 @@ def main():
         "companies": companies,
         "party_summary": party_summary,
         "party_profile": pprof,
+        "industry_totals": build_industry_totals(norm),
         "county_corp": build_county_corp(norm),
     }
     out = Path(args.out)

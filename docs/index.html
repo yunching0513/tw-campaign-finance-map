@@ -291,6 +291,7 @@
     <button data-v="map" class="on">地圖</button>
     <button data-v="donor">金主透視</button>
     <button data-v="party">政黨比較</button>
+    <button data-v="industry">產業比較</button>
   </div>
 
   <div class="search-wrap">
@@ -355,6 +356,24 @@
       <section class="pp-card pp-wide"><div class="section-t">個人 vs 企業（來源組成） <span class="en">by source</span></div><div id="ppSource"></div></section>
       <section class="pp-card pp-wide"><div class="section-t">企業捐贈・產業組成 <span class="en">corporate by industry</span></div><div id="ppIndustry"></div></section>
     </div>
+  </div>
+
+  <div id="industryView" hidden>
+    <div class="donor-bar">
+      <span class="mt">職位</span>
+      <select id="indOffice" class="sel"></select>
+      <span class="mt">指標</span>
+      <div class="toggle" id="indMetric">
+        <button data-m="total" class="on">捐贈總額</button>
+        <button data-m="companies">企業家數</button>
+      </div>
+      <span class="mt" id="indNote" style="margin-left:auto"></span>
+    </div>
+    <p class="lede" style="margin:2px 0 10px">各產業（營利事業）捐贈給候選人的<b>總額</b>比較。產業別以財政部營業稅籍主要行業對應；可切換以「捐贈總額」或「企業家數」排序。</p>
+    <section class="pp-card" style="border:1px solid var(--line)">
+      <div class="section-t">各產業捐贈總額 <span class="en">donations by industry</span></div>
+      <div id="indBars"></div>
+    </section>
   </div>
 
   <div class="modal" id="candModal" hidden>
@@ -657,10 +676,43 @@ function setView(v, highlightKey){
   document.getElementById('mapView').hidden = (v!=='map');
   document.getElementById('donorView').hidden = (v!=='donor');
   document.getElementById('partyView').hidden = (v!=='party');
+  document.getElementById('industryView').hidden = (v!=='industry');
   document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   if(v==='donor') renderCompanies(highlightKey);
   if(v==='party') renderParty();
+  if(v==='industry') renderIndustry();
 }
+
+// ===== 產業比較 =====
+let indMetricKey='total';
+function renderIndustry(){
+  const scope=document.getElementById('indOffice').value;
+  const arr=(D.industry_totals&&D.industry_totals[scope])||[];
+  const metric=indMetricKey;
+  const sorted=arr.slice().sort((a,b)=> metric==='companies'?(b.companies-a.companies):(b.total-a.total));
+  const max=Math.max(1,...sorted.map(x=> metric==='companies'?x.companies:x.total));
+  document.getElementById('indBars').innerHTML=sorted.map(x=>{
+    const v=metric==='companies'?x.companies:x.total;
+    const vs=metric==='companies'?(x.companies.toLocaleString()+' 家'):fmtNT(x.total);
+    return `<div class="pp-row"><span class="pp-name" style="width:74px">${x.ind}</span>
+       <div class="pp-track"><span class="pp-fill" style="width:${(v/max*100).toFixed(1)}%;background:${indColor(x.ind)}"></span></div>
+       <span class="pp-val">${vs}</span></div>`;
+  }).join('');
+  const tot=arr.reduce((s,x)=>s+x.total,0);
+  document.getElementById('indNote').innerHTML=`${scope==='全部'?'全部職位':scope}：企業捐贈合計 ${fmtNT(tot)}`;
+}
+(function(){
+  const sel=document.getElementById('indOffice');
+  sel.innerHTML=['全部'].concat(offices.map(o=>o.label))
+     .map(s=>`<option value="${s}">${s==='全部'?'全部職位':s}</option>`).join('');
+  sel.addEventListener('change',renderIndustry);
+  document.getElementById('indMetric').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    indMetricKey=b.dataset.m;
+    document.querySelectorAll('#indMetric button').forEach(x=>x.classList.toggle('on',x===b));
+    renderIndustry();
+  });
+})();
 
 // ===== 政黨比較 =====
 function partyList(scope){
