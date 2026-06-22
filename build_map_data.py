@@ -216,12 +216,67 @@ LAND_INDS = {"建商地產", "營造工程"}
 
 
 def classify_industry(name: str):
-    """回傳 (產業標籤, 是否土地開發相關)。"""
+    """回傳 (產業標籤, 是否土地開發相關)。（依公司名稱關鍵字）"""
     n = name or ""
     for label, kws in INDUSTRY_RULES:
         if any(k in n for k in kws):
             return label, label in LAND_INDS
     return "其他", False
+
+
+# ── 財政部「主要行業名稱」→ 產業桶（比公司名稱精準，優先採用）──
+FIA_MAP: dict = {}
+FIA_RULES = [
+    ("建商地產", ["不動產", "建設", "住宅營建", "土地開發", "都市更新", "重劃", "房地產"]),
+    ("營造工程", ["營造", "土木", "建築工程", "裝潢", "水電工程", "管道工程", "鋼構",
+                  "模板", "拆除", "預拌混凝土", "專門營造", "機電工程", "配管", "防水",
+                  "鋪面", "油漆", "工程"]),
+    ("金融投資", ["投資", "證券", "銀行", "信用合作", "保險", "融資", "期貨", "控股",
+                  "信託", "基金", "票券", "當鋪", "資產管理"]),
+    ("醫療生技", ["製藥", "藥品", "生物科技", "生技", "醫療", "醫院", "診所", "長照",
+                  "醫療器材", "保健", "藥粧"]),
+    ("科技電子", ["電子", "半導體", "積體電路", "資訊", "軟體", "電腦", "通訊", "光電",
+                  "網際網路", "資料處理", "電信", "電機", "數據"]),
+    ("媒體廣告", ["廣告", "傳播", "出版", "印刷", "影片", "影視", "電影", "廣播",
+                  "娛樂", "設計", "公關", "攝影", "唱片", "媒體"]),
+    ("餐飲旅宿", ["餐廳", "餐飲", "飲料店", "小吃", "旅館", "飯店", "旅行", "觀光",
+                  "民宿", "咖啡"]),
+    ("批發貿易", ["批發", "零售", "百貨", "超市", "量販", "經紀", "貿易", "進出口", "五金"]),
+    ("運輸物流", ["貨運", "運輸", "物流", "倉儲", "航運", "海運", "空運", "快遞",
+                  "客運", "通運", "停車場"]),
+    ("能源環保", ["電力", "發電", "瓦斯", "石油", "汽油", "加油", "天然氣", "能源",
+                  "太陽能", "風力", "廢棄物", "回收", "污染", "環境工程", "清潔"]),
+    ("農林漁牧", ["農產", "農業", "種植", "畜牧", "養殖", "漁業", "林業", "畜"]),
+    ("製造工業", ["製造", "工業", "機械", "化工", "化學", "塑膠", "紡織", "食品",
+                  "飲料", "金屬", "鋼", "鋁", "鐵", "玻璃", "橡膠", "水泥", "加工"]),
+]
+
+
+def load_fia_map(data_dir: Path):
+    global FIA_MAP
+    p = data_dir / "party" / "ban_industry.json"
+    if p.exists():
+        FIA_MAP = json.loads(p.read_text(encoding="utf-8"))
+        print(f"  財政部行業對照：{len(FIA_MAP)} 筆（精準分類）")
+    else:
+        print("  （無 ban_industry.json，產業改用公司名稱推測；可跑 fetch_industry.py）")
+    return FIA_MAP
+
+
+def map_fia_industry(name: str) -> str:
+    n = name or ""
+    for label, kws in FIA_RULES:
+        if any(k in n for k in kws):
+            return label
+    return "其他"
+
+
+def industry_of(name: str, ban: str):
+    """優先用財政部主要行業（統編對到）；否則退回公司名稱關鍵字。"""
+    if ban and ban in FIA_MAP:
+        lab = map_fia_industry(FIA_MAP[ban])
+        return lab, lab in LAND_INDS
+    return classify_industry(name)
 
 
 # ===== 候選人政黨（資料來源：g0v kiang/db.cec.gov.tw，整理自中選會）=====
@@ -343,7 +398,7 @@ def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n
                 c["total"] += amt
                 c["by_type"][dt] += amt
                 if dt == "營利事業":
-                    ind, _ = classify_industry(dname)
+                    ind, _ = industry_of(dname, did)
                     c["corp_ind"][ind] = c["corp_ind"].get(ind, 0.0) + amt
                 dk = (did if (did.isdigit() and len(did) == 8) else dname, dt)
                 e = c["donors"].get(dk)
@@ -351,7 +406,7 @@ def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n
                     e = {"name": dname or ("匿名" if dt == "匿名" else "（未具名）"),
                          "type": dt,
                          "id": did if (did.isdigit() and len(did) == 8) else "",
-                         "ind": classify_industry(dname)[0] if dt == "營利事業" else "",
+                         "ind": industry_of(dname, did)[0] if dt == "營利事業" else "",
                          "amt": 0.0}
                     c["donors"][dk] = e
                 e["amt"] += amt
@@ -406,14 +461,14 @@ def build_company_registry(norm_dir: Path, party_map: dict):
                 seen.add(dd)
                 e = reg.get(key)
                 if not e:
-                    ind, land = classify_industry(cname)
+                    ind, land = industry_of(cname, cid)
                     e = {"name": cname,
                          "id": cid if (cid.isdigit() and len(cid) == 8) else "",
                          "ind": ind, "land": land, "total": 0.0, "to": {}}
                     reg[key] = e
                 if cname and not e["name"]:
                     e["name"] = cname
-                    e["ind"], e["land"] = classify_industry(cname)
+                    e["ind"], e["land"] = industry_of(cname, cid)
                 e["total"] += amt
                 tk = (cand, label, county, yr)
                 e["to"][tk] = e["to"].get(tk, 0.0) + amt
@@ -471,7 +526,7 @@ def build_county_corp(norm_dir: Path, top_n=40):
                 seen.add(dd)
                 e = cc.setdefault(county, {}).get(key)
                 if not e:
-                    ind, land = classify_industry(cname)
+                    ind, land = industry_of(cname, cid)
                     e = {"key": key, "name": cname,
                          "id": cid if (cid.isdigit() and len(cid) == 8) else "",
                          "ind": ind, "land": land, "total": 0.0, "recips": set()}
@@ -625,6 +680,9 @@ def main():
 
     if not offices:
         sys.exit("沒有任何層級有資料，請先跑 ardata_scraper.py 產生 transactions_*.csv")
+
+    print("載入財政部行業對照…")
+    load_fia_map(data_dir)
 
     print("載入候選人政黨對照（中選會／g0v）…")
     party_map = load_party_map(data_dir)
