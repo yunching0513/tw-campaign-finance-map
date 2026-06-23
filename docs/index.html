@@ -350,6 +350,16 @@
   .tf-val{font-family:var(--latin); font-size:15px; color:var(--ink-strong); white-space:nowrap; min-width:96px; text-align:right}
   .tf-val small{font-family:var(--body); font-size:10.5px; color:var(--ink-faint); letter-spacing:.02em}
   .tf-empty{padding:30px 6px; color:var(--ink-faint); font-size:13px}
+  .cost-sum{font-family:var(--body); font-size:13px; color:var(--ink); margin:6px 0 2px; letter-spacing:.02em}
+  .cost-sum b{font-family:var(--latin); font-size:17px; color:var(--ink-strong)}
+  .cost-prow{display:grid; grid-template-columns:130px 1fr auto; align-items:center; gap:12px; padding:7px 4px; border-bottom:1px solid var(--line)}
+  .cp-name{display:flex; align-items:center; gap:6px; font-family:var(--serif); font-weight:600; color:var(--ink-strong); white-space:nowrap}
+  .cp-name small{font-family:var(--body); font-weight:400; font-size:10.5px; color:var(--ink-faint)}
+  .cp-track{height:13px; background:var(--panel-soft); position:relative; border-radius:2px; overflow:hidden}
+  .cp-fill{position:absolute; left:0; top:0; bottom:0; border-radius:2px}
+  .cp-val{font-family:var(--latin); font-size:15px; color:var(--ink-strong); white-space:nowrap; text-align:right}
+  .cp-val small{font-family:var(--body); font-size:10.5px; color:var(--ink-faint)}
+  .cp-val i{display:block; font-family:var(--body); font-style:normal; font-size:10.5px; color:var(--ink-faint)}
 </style>
 </head>
 <body>
@@ -367,7 +377,7 @@
     <button data-v="network">政商網絡</button>
     <button data-v="party">政黨比較</button>
     <button data-v="industry">產業比較</button>
-    <button data-v="thrift">小資當選人</button>
+    <button data-v="thrift">每票成本</button>
   </div>
 
   <div class="search-wrap">
@@ -491,20 +501,18 @@
       <select id="tfOffice" class="sel"></select>
       <span class="mt">年度</span>
       <select id="tfYear" class="sel"></select>
-      <span class="mt">指標</span>
-      <div class="toggle" id="tfMetric">
-        <button data-m="thrift" class="on">最省當選</button>
-        <button data-m="cp">選票 CP 值</button>
-      </div>
-      <div class="toggle" id="tfScope" hidden>
+      <span class="mt">範圍</span>
+      <div class="toggle" id="tfScope">
         <button data-s="elected" class="on">僅當選</button>
         <button data-s="all">含落選</button>
       </div>
       <span class="mt" id="tfNote" style="margin-left:auto"></span>
     </div>
-    <p class="lede" style="margin:2px 0 8px"><b>「小資當選人」</b>：同職位、同年度中，<b>花最少政治獻金卻當選</b>的人——
-      資源不等於選票。切到<b>「選票 CP 值」</b>看<b>每一塊錢政治獻金換到多少票</b>（得票數 ÷ 獻金）。
-      當選與否取自中選會；得票數目前涵蓋<b>立法委員</b>（其餘職位之票數陸續補上）。</p>
+    <p class="lede" style="margin:2px 0 8px"><b>每票成本 ＝ 政治獻金 ÷ 得票數</b>：一張票平均要花掉多少政治獻金，
+      數字越高代表「每換到一票投入的獻金越多」。先看<b>各政黨的中位數與平均數</b>——
+      大黨候選人是否因知名度高而每票成本較低？再看候選人由高到低的排行。
+      得票數目前涵蓋<b>立委（2020/2024）與縣市長（2022）</b>。</p>
+    <div id="tfParty"></div>
     <div id="tfList"></div>
   </div>
 
@@ -1293,10 +1301,14 @@ function moveNwTip(ev){
 
 // ===== 小資當選人 / 選票 CP 值 =====
 const tfOffice=document.getElementById('tfOffice'), tfYear=document.getElementById('tfYear'),
-      tfMetric=document.getElementById('tfMetric'), tfScope=document.getElementById('tfScope'),
+      tfScope=document.getElementById('tfScope'), tfParty=document.getElementById('tfParty'),
       tfList=document.getElementById('tfList'), tfNote=document.getElementById('tfNote');
-let tfInit=false, tfMetricKey='thrift', tfScopeKey='elected';
-const OFFICE_HAS_VOTES=new Set(['立法委員']);
+let tfInit=false, tfScopeKey='elected';
+const OFFICE_HAS_VOTES=new Set(['立法委員','縣市長']);
+const _median=arr=>{ const s=arr.slice().sort((a,b)=>a-b), n=s.length;
+  return n ? (n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2) : 0; };
+const _mean=arr=>arr.length ? arr.reduce((s,x)=>s+x,0)/arr.length : 0;
+const _nt=n=>Math.round(n).toLocaleString();
 
 function setupThrift(){
   if(!tfInit){
@@ -1304,55 +1316,58 @@ function setupThrift(){
     tfOffice.innerHTML=offices.map(o=>`<option value="${o.label}">${o.label}</option>`).join('');
     const def=offices.find(o=>o.label==='立法委員')||offices[0];
     tfOffice.value=def.label; refreshTfYears();
-    tfOffice.addEventListener('change',()=>{ refreshTfYears(); renderThrift(); });
-    tfYear.addEventListener('change',renderThrift);
-    tfMetric.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
-      [...tfMetric.children].forEach(x=>x.classList.toggle('on',x===b)); tfMetricKey=b.dataset.m;
-      tfScope.hidden=(tfMetricKey!=='cp'); renderThrift(); });
+    tfOffice.addEventListener('change',()=>{ refreshTfYears(); renderCost(); });
+    tfYear.addEventListener('change',renderCost);
     tfScope.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
-      [...tfScope.children].forEach(x=>x.classList.toggle('on',x===b)); tfScopeKey=b.dataset.s; renderThrift(); });
+      [...tfScope.children].forEach(x=>x.classList.toggle('on',x===b)); tfScopeKey=b.dataset.s; renderCost(); });
   }
-  renderThrift();
+  renderCost();
 }
 function refreshTfYears(){
   const o=offices.find(x=>x.label===tfOffice.value)||offices[0];
   tfYear.innerHTML=o.years.map(y=>`<option value="${y}">${y} 年</option>`).join('');
   tfYear.value=o.years[o.years.length-1];
 }
-function renderThrift(){
+function renderCost(){
   if(!DATA_READY) return;
-  const office=tfOffice.value, year=+tfYear.value, metric=tfMetricKey;
-  let rows=Object.entries(CAND).filter(([k,d])=>d.office===office && d.year===year);
-  let note='';
-  if(metric==='cp'){
-    rows=rows.filter(([k,d])=>d.votes && d.total>0);
-    if(tfScopeKey==='elected') rows=rows.filter(([k,d])=>d.elected);
-    rows.sort((a,b)=>(b[1].votes/b[1].total)-(a[1].votes/a[1].total));
-    if(!rows.length) note = OFFICE_HAS_VOTES.has(office)?'此年度無資料。':'此職位尚無得票數資料（目前涵蓋立法委員；其餘陸續補上）。';
-  }else{
-    rows=rows.filter(([k,d])=>d.elected);
-    rows.sort((a,b)=>a[1].total-b[1].total);
-    if(!rows.length) note='此職位／年度查無當選者資料。';
+  const office=tfOffice.value, year=+tfYear.value, cost=d=>d.total/d.votes;
+  let rows=Object.entries(CAND).filter(([k,d])=>d.office===office && d.year===year && d.votes && d.total>0);
+  if(tfScopeKey==='elected') rows=rows.filter(([k,d])=>d.elected);
+  if(!rows.length){
+    tfParty.innerHTML=''; tfNote.textContent='';
+    tfList.innerHTML=`<p class="tf-empty">${OFFICE_HAS_VOTES.has(office)?'此年度尚無得票數資料（縣市長目前僅 2022）。':'此職位尚無得票數資料（目前涵蓋立委、縣市長 2022）。'}</p>`;
+    return;
   }
-  const valOf=metric==='cp' ? d=>d.votes/d.total : d=>d.total;
-  const N=30, shown=rows.slice(0,N);
-  tfNote.textContent = rows.length ? `${office}・${year}：${metric==='cp'?'每元得票（票/元）':'最省當選'} ${rows.length} 人${rows.length>N?'｜前 '+N:''}` : '';
-  if(!shown.length){ tfList.innerHTML=`<p class="tf-empty">${note}</p>`; return; }
-  const max=Math.max(...rows.map(([k,d])=>valOf(d)))||1;
-  tfList.innerHTML=shown.map(([k,d],i)=>{
-    const v=valOf(d), w=Math.max(2.5, v/max*100);
-    const col = metric==='cp' ? 'var(--midori-solid)' : pColor(d.party||'其他');
-    const valHTML = metric==='cp'
-      ? `${(d.votes/d.total).toFixed(3)}<small> 票/元</small>`
-      : `${fmtNT(d.total)}${d.votes?` <small>${fmtInt(d.votes)} 票</small>`:''}`;
-    return `<div class="tf-row${d.elected?' win':''}" data-cand="${k}">
-      <span class="tf-rank">${i+1}</span>
-      <span class="tf-id">${pDot(d.party)}<span class="nm">${d.name}</span>
-        <span class="meta">${d.district}${d.elected?'·當選':'·落選'}</span></span>
-      <span class="tf-bar"><span class="tf-track"><span class="tf-fill" style="width:${w}%;background:${col}"></span></span>
-        <span class="tf-val">${valHTML}</span></span>
-    </div>`;
-  }).join('');
+  const all=rows.map(([k,d])=>cost(d));
+  // 各政黨中位數／平均
+  const pg={};
+  rows.forEach(([k,d])=>{ const p=d.party||'未標示'; (pg[p]=pg[p]||[]).push(cost(d)); });
+  const parties=Object.entries(pg).map(([p,cs])=>({p,med:_median(cs),mean:_mean(cs),n:cs.length}))
+                 .sort((a,b)=>a.med-b.med);
+  const pmax=Math.max(...parties.map(x=>x.med))||1;
+  tfParty.innerHTML =
+    `<div class="cost-sum">全體：中位數 <b>${_nt(_median(all))}</b> 元/票・平均 <b>${_nt(_mean(all))}</b> 元/票・${rows.length} 人（${tfScopeKey==='elected'?'僅當選':'含落選'}）</div>`
+    + `<div class="section-t">各政黨每票成本・中位數（低→高） <span class="en">cost per vote by party</span></div>`
+    + parties.map(x=>`<div class="cost-prow">
+        <span class="cp-name">${pDot(x.p)}${x.p}<small>${x.n} 人</small></span>
+        <span class="cp-track"><span class="cp-fill" style="width:${Math.max(3,x.med/pmax*100)}%;background:${pColor(x.p)}"></span></span>
+        <span class="cp-val">${_nt(x.med)}<small> 元/票</small><i>平均 ${_nt(x.mean)}</i></span>
+      </div>`).join('');
+  // 候選人排行（由高到低＝每票最貴）
+  rows.sort((a,b)=>cost(b[1])-cost(a[1]));
+  const N=30, shown=rows.slice(0,N), rmax=cost(shown[0][1])||1;
+  tfNote.textContent=`${office}・${year}：每票成本 ${rows.length} 人${rows.length>N?'｜前 '+N+'（最貴）':''}`;
+  tfList.innerHTML=`<div class="section-t" style="margin-top:18px">候選人每票成本・由高到低 <span class="en">most $ per vote</span></div>`
+    + shown.map(([k,d],i)=>{
+      const c=cost(d), w=Math.max(2.5, c/rmax*100);
+      return `<div class="tf-row${d.elected?' win':''}" data-cand="${k}">
+        <span class="tf-rank">${i+1}</span>
+        <span class="tf-id">${pDot(d.party)}<span class="nm">${d.name}</span>
+          <span class="meta">${d.district}${d.elected?'·當選':'·落選'}</span></span>
+        <span class="tf-bar"><span class="tf-track"><span class="tf-fill" style="width:${w}%;background:${pColor(d.party||'其他')}"></span></span>
+          <span class="tf-val">${_nt(c)}<small> 元/票</small></span></span>
+      </div>`;
+    }).join('');
 }
 
 natStats(); render(null);
