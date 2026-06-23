@@ -438,22 +438,23 @@ class PartyMap(dict):
 
 
 class OutcomeMap:
-    """(姓名, 選區, 年)→{elected, votes}；沿用 PartyMap 的模糊比對處理姓名變體。"""
+    """(姓名, 選區, 年, 職位)→{elected, votes}；沿用模糊比對處理姓名變體。
+    含職位是因 2022 九合一同時有縣市長與議員，僅靠姓名+縣市+年會跨職位互撞。"""
 
     def __init__(self):
         self.exact = {}
         self.idx = {}
 
-    def add(self, name, district, year, elected, votes):
+    def add(self, name, district, year, office, elected, votes):
         v = {"elected": bool(elected), "votes": votes}
-        self.exact[(name, district, year)] = v
-        self.idx.setdefault((district, year), []).append((name, v))
+        self.exact[(name, district, year, office)] = v
+        self.idx.setdefault((district, year, office), []).append((name, v))
 
-    def lookup(self, name, district, year):
-        v = self.exact.get((name, district, year))
+    def lookup(self, name, district, year, office):
+        v = self.exact.get((name, district, year, office))
         if v:
             return v
-        cands = self.idx.get((district, year))
+        cands = self.idx.get((district, year, office))
         if not cands:
             return None
         nkey = _strip_sep(name)
@@ -490,26 +491,32 @@ def load_outcomes(data_dir: Path) -> OutcomeMap:
                 nm = (row.get("cand_name") or "").strip()
                 if nm:
                     om.add(nm, area_to_county(row.get("area", "")), yr,
+                           OUTCOME_OFFICE.get(office, office),
                            row.get("is_victor") == "Y", None)
     lp = cache / "legislator_party.json"
     if lp.exists():
         for rec in json.loads(lp.read_text(encoding="utf-8")):
-            om.add(rec["name"], rec["district"], rec["year"],
+            om.add(rec["name"], rec["district"], rec["year"], "立法委員",
                    rec.get("elected", False), rec.get("votes"))
-    # 縣市長得票數（維基，目前僅 2022 該頁含表）：併入既有結果條目，不動當選旗標
-    mv = cache / "mayor_votes.json"
-    if mv.exists():
+
+    def _merge_votes(fname, office, label):
+        fp = cache / fname
+        if not fp.exists():
+            return
         upd = 0
-        for rec in json.loads(mv.read_text(encoding="utf-8")):
-            ent = om.lookup(rec["name"], rec["district"], rec["year"])
+        for rec in json.loads(fp.read_text(encoding="utf-8")):
+            ent = om.lookup(rec["name"], rec["district"], rec["year"], office)
             if ent and ent.get("votes") is None:
                 ent["votes"] = rec["votes"]
                 upd += 1
             elif not ent:
-                om.add(rec["name"], rec["district"], rec["year"],
+                om.add(rec["name"], rec["district"], rec["year"], office,
                        rec.get("elected", False), rec["votes"])
                 upd += 1
-        print(f"  縣市長得票數補充（維基）：{upd} 筆")
+        print(f"  {label}得票數補充：{upd} 筆")
+
+    _merge_votes("mayor_votes.json", "縣市長", "縣市長")        # 維基，目前僅 2022
+    _merge_votes("councilor_votes.json", "議員", "議員")        # kiang 逐村里彙總，2022
     print(f"  選舉結果（當選/票數）：{len(om.exact)} 筆")
     return om
 
@@ -652,7 +659,7 @@ def build_candidate_registry(norm_dir: Path, party_map: dict, outcome_map=None,
                "top_donors": [{"name": e["name"], "type": e["type"], "id": e["id"],
                                "ind": e["ind"], "amount": round(e["amt"])}
                               for e in donors]}
-        oc = outcome_map.lookup(c["name"], c["district"], c["year"]) if outcome_map else None
+        oc = outcome_map.lookup(c["name"], c["district"], c["year"], c["office"]) if outcome_map else None
         if oc:
             rec["elected"] = oc["elected"]
             if oc["votes"] is not None:

@@ -511,7 +511,7 @@
     <p class="lede" style="margin:2px 0 8px"><b>每票成本 ＝ 政治獻金 ÷ 得票數</b>：一張票平均要花掉多少政治獻金，
       數字越高代表「每換到一票投入的獻金越多」。先看<b>各政黨的中位數與平均數</b>——
       大黨候選人是否因知名度高而每票成本較低？再看候選人由高到低的排行。
-      得票數目前涵蓋<b>立委（2020/2024）與縣市長（2022）</b>。</p>
+      得票數目前涵蓋<b>立委（2020/2024）、縣市長與議員（2022）</b>。</p>
     <div id="tfParty"></div>
     <div id="tfList"></div>
   </div>
@@ -1304,7 +1304,7 @@ const tfOffice=document.getElementById('tfOffice'), tfYear=document.getElementBy
       tfScope=document.getElementById('tfScope'), tfParty=document.getElementById('tfParty'),
       tfList=document.getElementById('tfList'), tfNote=document.getElementById('tfNote');
 let tfInit=false, tfScopeKey='elected';
-const OFFICE_HAS_VOTES=new Set(['立法委員','縣市長']);
+const OFFICE_HAS_VOTES=new Set(['立法委員','縣市長','議員']);
 const _median=arr=>{ const s=arr.slice().sort((a,b)=>a-b), n=s.length;
   return n ? (n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2) : 0; };
 const _mean=arr=>arr.length ? arr.reduce((s,x)=>s+x,0)/arr.length : 0;
@@ -1344,7 +1344,7 @@ function renderCost(){
     : office + '・' + (yv==='__all__' ? '全部年度' : yv + ' 年');
   if(!rows.length){
     tfParty.innerHTML=''; tfNote.textContent='';
-    tfList.innerHTML=`<p class="tf-empty">${OFFICE_HAS_VOTES.has(office)?'此年度尚無得票數資料（縣市長目前僅 2022）。':'此職位尚無得票數資料（目前涵蓋立委、縣市長 2022）。'}</p>`;
+    tfList.innerHTML=`<p class="tf-empty">${OFFICE_HAS_VOTES.has(office)?'此年度尚無得票數資料（縣市長、議員目前僅 2022）。':'此職位尚無得票數資料（目前涵蓋立委、縣市長、議員）。'}</p>`;
     return;
   }
   const all=rows.map(([k,d])=>cost(d));
