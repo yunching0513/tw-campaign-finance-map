@@ -3,7 +3,9 @@ data/raw/
 data/normalized/*.csv
 data/*.geojson
 data/*.log
-data/party/
+data/party/*
+# 例外：立委政黨對照（維基爬取，小檔且來源可能變動，需上版控以利重建）
+!data/party/legislator_party.json
 
 # 注意：web/map_data.js 是「彙總後」的小檔，需要上版控以供網頁載入，故不在此排除。
 

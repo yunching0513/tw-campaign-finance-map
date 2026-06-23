@@ -403,11 +403,14 @@ class PartyMap(dict):
 
     def __init__(self):
         super().__init__()
-        self.idx = {}   # (縣市, 年) -> [(中選會姓名, 政黨), ...]
+        self.idx = {}     # (縣市, 年) -> [(中選會姓名, 政黨), ...]
+        self.byname = {}  # (純漢字姓名, 年) -> {政黨, ...}（全國唯一時可跨選區回退）
 
     def add(self, name, county, year, party):
         self[(name, county, year)] = party
         self.idx.setdefault((county, year), []).append((name, party))
+        if party:
+            self.byname.setdefault((_han(name), year), set()).add(party)
 
     def lookup(self, name, county, year):
         p = self.get((name, county, year))
@@ -420,11 +423,17 @@ class PartyMap(dict):
         for cn, cp in cands:
             if cp and _strip_sep(cn) == nkey:
                 return cp
-        h = _han(name)                                # 純漢字姓名相等且政黨唯一
+        h = _han(name)                                # 純漢字姓名相等且政黨唯一（同縣市同年）
         if len(h) >= 2:
             hits = {cp for cn, cp in cands if cp and _han(cn) == h}
             if len(hits) == 1:
                 return next(iter(hits))
+        # 跨選區回退：姓名（≥3 漢字，降低同名風險）全國該年僅對應一個政黨時才採用
+        # 用於原住民立委等「獻金選區＝家鄉縣市、實際選區＝原住民」的情形
+        if len(h) >= 3:
+            g = self.byname.get((h, year))
+            if g and len(g) == 1:
+                return next(iter(g))
         return ""
 
 
@@ -473,12 +482,28 @@ def load_party_map(data_dir: Path) -> PartyMap:
                 if nm:
                     pmap.add(nm, county, 2024, norm_party(c.get("party", "")))
 
+    # 立委候選人政黨（補 kiang 沒有的 2020 全部、2024 原住民/退選區域）
+    # 來源：維基「YYYY年立委選舉區域暨原住民選舉區投票結果列表」，由 fetch_legislator_party.py 產生。
+    # 不覆蓋已存在的鍵（保留中選會 zone_cunli 的 2024 區域），僅補空缺。
+    lp = cache / "legislator_party.json"
+    if lp.exists():
+        added = 0
+        for rec in json.loads(lp.read_text(encoding="utf-8")):
+            key = (rec["name"], rec["district"], rec["year"])
+            if key not in pmap:
+                pmap.add(rec["name"], rec["district"], rec["year"],
+                         norm_party(rec["party"]))
+                added += 1
+        print(f"  立委政黨補充（維基）：+{added} 筆")
+    else:
+        print("  ! 缺 data/party/legislator_party.json，請先跑 fetch_legislator_party.py", file=sys.stderr)
+
     # 總統候選人（硬編；district 在候選人登錄中為「全國」）
     for yr in (2016, 2020, 2024):
         for nm, p in PRESIDENT_PARTY.items():
             pmap.add(nm, "全國", yr, p)
 
-    print(f"  政黨對照：{len(pmap)} 筆（2018/2022 各職位 + 2024 區域立委 + 總統）")
+    print(f"  政黨對照：{len(pmap)} 筆（2018/2022 各職位 + 立委 + 總統）")
     return pmap
 
 
