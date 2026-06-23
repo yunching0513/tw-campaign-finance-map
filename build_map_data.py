@@ -120,6 +120,55 @@ def iter_rings(geom: dict):
             yield from poly
 
 
+# 幾何簡化：地圖以 ~520px 寬呈現，海岸線原始精度遠超螢幕所需。
+# Douglas–Peucker 抽點 + 丟棄肉眼看不到的小島礁，可把幾何資料壓掉 ~80%。
+SIMPLIFY_EPS = 0.7   # 容差（投影後座標單位，約等於像素）
+MIN_RING_PX = 1.6    # 投影後外接框最大邊小於此值的環直接丟棄
+
+
+def _dp_open(pts, eps):
+    """開放多段線的 Douglas–Peucker 簡化（迭代版，避免遞迴深度問題）。"""
+    n = len(pts)
+    if n < 3:
+        return pts
+    keep = [False] * n
+    keep[0] = keep[n - 1] = True
+    stack = [(0, n - 1)]
+    while stack:
+        s, e = stack.pop()
+        ax, ay = pts[s]
+        bx, by = pts[e]
+        dx, dy = bx - ax, by - ay
+        L = math.hypot(dx, dy) or 1e-9
+        dmax, idx = -1.0, -1
+        for i in range(s + 1, e):
+            px, py = pts[i]
+            d = abs((px - ax) * dy - (py - ay) * dx) / L
+            if d > dmax:
+                dmax, idx = d, i
+        if dmax > eps and idx != -1:
+            keep[idx] = True
+            stack.append((s, idx))
+            stack.append((idx, e))
+    return [p for p, k in zip(pts, keep) if k]
+
+
+def _dp(pts, eps):
+    """簡化一個環。閉合環（首=尾）若直接做 DP，基準線退化為一點會把整環壓成兩點，
+    故先取離起點最遠的頂點當第二錨點，拆成兩段開放線各自簡化。"""
+    n = len(pts)
+    if n < 4:
+        return pts
+    if pts[0] == pts[-1]:
+        ax, ay = pts[0]
+        far = max(range(1, n - 1),
+                  key=lambda i: (pts[i][0] - ax) ** 2 + (pts[i][1] - ay) ** 2)
+        a = _dp_open(pts[:far + 1], eps)
+        b = _dp_open(pts[far:], eps)
+        return a[:-1] + b   # a 結尾與 b 開頭同為 far，去重後接續
+    return _dp_open(pts, eps)
+
+
 def build_projection(features, width, height, pad):
     lat0 = 23.7
     k = math.cos(math.radians(lat0))
@@ -171,6 +220,13 @@ def path_for_feature(feature, project_main, inset_cfg, name) -> str:
         if len(ring) < 3:
             continue
         pts = [proj(lon, lat) for lon, lat in ring]
+        rxs = [p[0] for p in pts]
+        rys = [p[1] for p in pts]
+        if max(max(rxs) - min(rxs), max(rys) - min(rys)) < MIN_RING_PX:
+            continue  # 海上小島礁，螢幕上看不到
+        pts = _dp(pts, SIMPLIFY_EPS)
+        if len(pts) < 3:
+            continue
         parts.append("M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pts) + "Z")
     return " ".join(parts)
 
