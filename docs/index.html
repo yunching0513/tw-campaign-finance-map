@@ -1313,9 +1313,9 @@ const _nt=n=>Math.round(n).toLocaleString();
 function setupThrift(){
   if(!tfInit){
     tfInit=true;
-    tfOffice.innerHTML=offices.map(o=>`<option value="${o.label}">${o.label}</option>`).join('');
-    const def=offices.find(o=>o.label==='立法委員')||offices[0];
-    tfOffice.value=def.label; refreshTfYears();
+    tfOffice.innerHTML='<option value="__all__">全部職位合併</option>'
+      + offices.map(o=>`<option value="${o.label}">${o.label}</option>`).join('');
+    tfOffice.value='立法委員'; refreshTfYears();
     tfOffice.addEventListener('change',()=>{ refreshTfYears(); renderCost(); });
     tfYear.addEventListener('change',renderCost);
     tfScope.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
@@ -1324,15 +1324,24 @@ function setupThrift(){
   renderCost();
 }
 function refreshTfYears(){
+  if(tfOffice.value==='__all__'){
+    tfYear.innerHTML='<option value="__all__">全部</option>'; tfYear.disabled=true; return;
+  }
+  tfYear.disabled=false;
   const o=offices.find(x=>x.label===tfOffice.value)||offices[0];
-  tfYear.innerHTML=o.years.map(y=>`<option value="${y}">${y} 年</option>`).join('');
-  tfYear.value=o.years[o.years.length-1];
+  tfYear.innerHTML='<option value="__all__">全部年度</option>'
+    + o.years.map(y=>`<option value="${y}">${y} 年</option>`).join('');
+  tfYear.value='__all__';   // 預設合併該職位各年，樣本較足
 }
 function renderCost(){
   if(!DATA_READY) return;
-  const office=tfOffice.value, year=+tfYear.value, cost=d=>d.total/d.votes;
-  let rows=Object.entries(CAND).filter(([k,d])=>d.office===office && d.year===year && d.votes && d.total>0);
+  const office=tfOffice.value, yv=tfYear.value, cost=d=>d.total/d.votes;
+  let rows=Object.entries(CAND).filter(([k,d])=> d.votes && d.total>0
+    && (office==='__all__' || d.office===office)
+    && (office==='__all__' || yv==='__all__' || d.year===+yv));
   if(tfScopeKey==='elected') rows=rows.filter(([k,d])=>d.elected);
+  const scopeLabel = office==='__all__' ? '全部職位合併'
+    : office + '・' + (yv==='__all__' ? '全部年度' : yv + ' 年');
   if(!rows.length){
     tfParty.innerHTML=''; tfNote.textContent='';
     tfList.innerHTML=`<p class="tf-empty">${OFFICE_HAS_VOTES.has(office)?'此年度尚無得票數資料（縣市長目前僅 2022）。':'此職位尚無得票數資料（目前涵蓋立委、縣市長 2022）。'}</p>`;
@@ -1356,7 +1365,7 @@ function renderCost(){
   // 候選人排行（由高到低＝每票最貴）
   rows.sort((a,b)=>cost(b[1])-cost(a[1]));
   const N=30, shown=rows.slice(0,N), rmax=cost(shown[0][1])||1;
-  tfNote.textContent=`${office}・${year}：每票成本 ${rows.length} 人${rows.length>N?'｜前 '+N+'（最貴）':''}`;
+  tfNote.textContent=`${scopeLabel}：每票成本 ${rows.length} 人${rows.length>N?'｜前 '+N+'（最貴）':''}`;
   tfList.innerHTML=`<div class="section-t" style="margin-top:18px">候選人每票成本・由高到低 <span class="en">most $ per vote</span></div>`
     + shown.map(([k,d],i)=>{
       const c=cost(d), w=Math.max(2.5, c/rmax*100);
