@@ -369,7 +369,8 @@ def norm_party(p: str) -> str:
     p = (p or "").strip()
     if not p:
         return ""
-    if "無黨" in p or "未經政黨" in p:
+    # 只把「真・無黨籍」歸為無黨籍；「無黨團結聯盟」是政黨，勿誤併
+    if "未經政黨" in p or p == "無黨籍":
         return "無黨籍"
     return PARTY_GROUP.get(p, "其他")
 
@@ -382,11 +383,56 @@ def area_to_county(area: str) -> str:
     return a
 
 
-def load_party_map(data_dir: Path) -> dict:
-    """回傳 {(候選人, 縣市, 西元年): 政黨群組}。下載並快取於 data/party/。"""
+# 原住民候選人在獻金資料與中選會名單常以「族名＋漢名」不同順序、不同分隔符登錄
+# （例：獻金「Mulas‧Ismahasan陳慧君」↔ 中選會「陳慧君 Mulas．Ismahasan」）。
+# 故除精確比對外，於「同縣市同年」範圍內再以「去分隔符」與「純漢字姓名相等」回退比對，
+# 且僅在比對結果政黨唯一時才採用，避免誤判。
+_NAME_SEP = " ·‧．・•∙. ‧．・"
+
+
+def _strip_sep(s: str) -> str:
+    return "".join(ch for ch in (s or "") if ch not in _NAME_SEP)
+
+
+def _han(s: str) -> str:
+    return "".join(ch for ch in (s or "") if "一" <= ch <= "鿿")
+
+
+class PartyMap(dict):
+    """(姓名, 縣市, 年)→政黨；附同縣市同年索引，支援原住民等姓名變體的模糊回退。"""
+
+    def __init__(self):
+        super().__init__()
+        self.idx = {}   # (縣市, 年) -> [(中選會姓名, 政黨), ...]
+
+    def add(self, name, county, year, party):
+        self[(name, county, year)] = party
+        self.idx.setdefault((county, year), []).append((name, party))
+
+    def lookup(self, name, county, year):
+        p = self.get((name, county, year))
+        if p:
+            return p
+        cands = self.idx.get((county, year))
+        if not cands:
+            return ""
+        nkey = _strip_sep(name)                       # 去分隔符後相等
+        for cn, cp in cands:
+            if cp and _strip_sep(cn) == nkey:
+                return cp
+        h = _han(name)                                # 純漢字姓名相等且政黨唯一
+        if len(h) >= 2:
+            hits = {cp for cn, cp in cands if cp and _han(cn) == h}
+            if len(hits) == 1:
+                return next(iter(hits))
+        return ""
+
+
+def load_party_map(data_dir: Path) -> PartyMap:
+    """回傳 PartyMap：(候選人, 縣市, 西元年)→政黨群組。下載並快取於 data/party/。"""
     cache = data_dir / "party"
     cache.mkdir(parents=True, exist_ok=True)
-    pmap: dict = {}
+    pmap = PartyMap()
 
     # 九合一各職位候選人 CSV（2018、2022）
     import csv as _csv
@@ -405,8 +451,8 @@ def load_party_map(data_dir: Path) -> dict:
             for row in _csv.DictReader(_io.StringIO(fp.read_text(encoding="utf-8"))):
                 nm = (row.get("cand_name") or "").strip()
                 if nm:
-                    pmap[(nm, area_to_county(row.get("area", "")), yr)] = \
-                        norm_party(row.get("party", ""))
+                    pmap.add(nm, area_to_county(row.get("area", "")), yr,
+                             norm_party(row.get("party", "")))
 
     # 2024 區域立委（從村里得票 JSON 萃取 候選人→政黨→選區縣市）
     fp = cache / "2024_zone_cunli.json"
@@ -425,12 +471,12 @@ def load_party_map(data_dir: Path) -> dict:
             for c in (v.get("votes") or {}).values():
                 nm = (c.get("name") or "").strip()
                 if nm:
-                    pmap[(nm, county, 2024)] = norm_party(c.get("party", ""))
+                    pmap.add(nm, county, 2024, norm_party(c.get("party", "")))
 
     # 總統候選人（硬編；district 在候選人登錄中為「全國」）
     for yr in (2016, 2020, 2024):
         for nm, p in PRESIDENT_PARTY.items():
-            pmap[(nm, "全國", yr)] = p
+            pmap.add(nm, "全國", yr, p)
 
     print(f"  政黨對照：{len(pmap)} 筆（2018/2022 各職位 + 2024 區域立委 + 總統）")
     return pmap
@@ -496,7 +542,7 @@ def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n
         donors = sorted(c["donors"].values(), key=lambda e: -e["amt"])[:top_n]
         out[key] = {"name": c["name"], "office": c["office"], "district": c["district"],
                     "year": c["year"], "total": round(c["total"]),
-                    "party": party_map.get((c["name"], c["district"], c["year"]), ""),
+                    "party": party_map.lookup(c["name"], c["district"], c["year"]),
                     "n_donors": len(c["donors"]),
                     "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
                     "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
@@ -555,7 +601,7 @@ def build_company_registry(norm_dir: Path, party_map: dict):
     for key, e in reg.items():
         dons = sorted(
             ({"name": k[0], "office": k[1], "district": k[2], "year": k[3],
-              "party": party_map.get((k[0], k[2], k[3]), ""),
+              "party": party_map.lookup(k[0], k[2], k[3]),
               "amount": round(v)} for k, v in e["to"].items()),
             key=lambda d: -d["amount"])
         n_recip = len({d["name"] for d in dons})
