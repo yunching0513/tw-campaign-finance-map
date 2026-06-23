@@ -92,13 +92,18 @@ def parse_subpage(wt: str, year: int):
     in_table = False
 
     def flush_row():
-        # cur: 該列各 cell 的純值；欄序 號次,候選人,性別,政黨,...
+        # cur: 該列各 cell 的純值；欄序 號次,候選人,性別,政黨,得票數,得票率,當選標記
         if district and len(cur) >= 4:
             name = clean_name(cur[1])
             party = cell_party(cur[3])
+            votes = None
+            if len(cur) >= 5:
+                digits = re.sub(r"[^\d]", "", cur[4])
+                votes = int(digits) if digits else None
+            elected = any("Vote1" in c for c in cur)   # 當選標記欄 [[File:Vote1.svg]]
             if name and party and not name.isdigit():
-                out.append({"name": name, "district": district,
-                            "year": year, "party": party})
+                out.append({"name": name, "district": district, "year": year,
+                            "party": party, "votes": votes, "elected": elected})
 
     head = re.compile(r"^(=+)\s*(.*?)\s*(=+)\s*$")
     for line in wt.splitlines():

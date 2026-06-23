@@ -437,6 +437,69 @@ class PartyMap(dict):
         return ""
 
 
+class OutcomeMap:
+    """(姓名, 選區, 年)→{elected, votes}；沿用 PartyMap 的模糊比對處理姓名變體。"""
+
+    def __init__(self):
+        self.exact = {}
+        self.idx = {}
+
+    def add(self, name, district, year, elected, votes):
+        v = {"elected": bool(elected), "votes": votes}
+        self.exact[(name, district, year)] = v
+        self.idx.setdefault((district, year), []).append((name, v))
+
+    def lookup(self, name, district, year):
+        v = self.exact.get((name, district, year))
+        if v:
+            return v
+        cands = self.idx.get((district, year))
+        if not cands:
+            return None
+        nkey = _strip_sep(name)
+        for cn, cv in cands:
+            if _strip_sep(cn) == nkey:
+                return cv
+        h = _han(name)
+        if len(h) >= 2:
+            hits = [cv for cn, cv in cands if _han(cn) == h]
+            if len(hits) == 1:
+                return hits[0]
+        return None
+
+
+# CEC 職位檔名 → 候選人登錄職位（用於對當選結果）
+OUTCOME_OFFICE = {"直轄市長": "縣市長", "縣市長": "縣市長",
+                  "直轄市議員": "議員", "縣市議員": "議員",
+                  "鄉鎮市長": "鄉鎮市長", "村里長": "村里長"}
+
+
+def load_outcomes(data_dir: Path) -> OutcomeMap:
+    """當選與否＋得票數。九合一取自中選會 office CSV 的 is_victor（無票數）；
+    立委取自維基（含票數）。回傳 OutcomeMap。"""
+    import csv as _csv
+    import io as _io
+    cache = data_dir / "party"
+    om = OutcomeMap()
+    for yr in CEC_NINEINONE_YEARS:
+        for office in CEC_OFFICE_FILES:
+            fp = cache / f"{yr}_{office}.csv"
+            if not fp.exists():
+                continue
+            for row in _csv.DictReader(_io.StringIO(fp.read_text(encoding="utf-8"))):
+                nm = (row.get("cand_name") or "").strip()
+                if nm:
+                    om.add(nm, area_to_county(row.get("area", "")), yr,
+                           row.get("is_victor") == "Y", None)
+    lp = cache / "legislator_party.json"
+    if lp.exists():
+        for rec in json.loads(lp.read_text(encoding="utf-8")):
+            om.add(rec["name"], rec["district"], rec["year"],
+                   rec.get("elected", False), rec.get("votes"))
+    print(f"  選舉結果（當選/票數）：{len(om.exact)} 筆")
+    return om
+
+
 def load_party_map(data_dir: Path) -> PartyMap:
     """回傳 PartyMap：(候選人, 縣市, 西元年)→政黨群組。下載並快取於 data/party/。"""
     cache = data_dir / "party"
@@ -507,7 +570,8 @@ def load_party_map(data_dir: Path) -> PartyMap:
     return pmap
 
 
-def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n=15):
+def build_candidate_registry(norm_dir: Path, party_map: dict, outcome_map=None,
+                             floor=50000, top_n=15):
     """每位候選人（依 姓名|職位|選區|年）的金主結構：
     收入總額、來源類別占比、企業金主之產業分布、收受最多的前 N 位金主。
     僅收錄收入 >= floor 的候選人，控制檔案大小。"""
@@ -565,15 +629,21 @@ def build_candidate_registry(norm_dir: Path, party_map: dict, floor=50000, top_n
         if c["total"] < floor:
             continue
         donors = sorted(c["donors"].values(), key=lambda e: -e["amt"])[:top_n]
-        out[key] = {"name": c["name"], "office": c["office"], "district": c["district"],
-                    "year": c["year"], "total": round(c["total"]),
-                    "party": party_map.lookup(c["name"], c["district"], c["year"]),
-                    "n_donors": len(c["donors"]),
-                    "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
-                    "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
-                    "top_donors": [{"name": e["name"], "type": e["type"], "id": e["id"],
-                                    "ind": e["ind"], "amount": round(e["amt"])}
-                                   for e in donors]}
+        rec = {"name": c["name"], "office": c["office"], "district": c["district"],
+               "year": c["year"], "total": round(c["total"]),
+               "party": party_map.lookup(c["name"], c["district"], c["year"]),
+               "n_donors": len(c["donors"]),
+               "by_type": {t: round(v) for t, v in c["by_type"].items() if v},
+               "corp_ind": {k: round(v) for k, v in c["corp_ind"].items() if v},
+               "top_donors": [{"name": e["name"], "type": e["type"], "id": e["id"],
+                               "ind": e["ind"], "amount": round(e["amt"])}
+                              for e in donors]}
+        oc = outcome_map.lookup(c["name"], c["district"], c["year"]) if outcome_map else None
+        if oc:
+            rec["elected"] = oc["elected"]
+            if oc["votes"] is not None:
+                rec["votes"] = oc["votes"]
+        out[key] = rec
     return out
 
 
@@ -888,6 +958,7 @@ def main():
 
     print("載入候選人政黨對照（中選會／g0v）…")
     party_map = load_party_map(data_dir)
+    outcome_map = load_outcomes(data_dir)
 
     print("建立企業金主跨選區網絡…")
     companies = build_company_registry(norm, party_map)
@@ -895,8 +966,11 @@ def main():
     print(f"  跨候選人企業金主：{len(companies)} 家（土地開發相關 {land_n} 家）")
 
     print("建立候選人金主結構…")
-    candidates = build_candidate_registry(norm, party_map)
+    candidates = build_candidate_registry(norm, party_map, outcome_map)
     matched = sum(1 for c in candidates.values() if c["party"])
+    elected_n = sum(1 for c in candidates.values() if c.get("elected"))
+    votes_n = sum(1 for c in candidates.values() if c.get("votes") is not None)
+    print(f"  其中標記當選 {elected_n} 位、有得票數 {votes_n} 位")
     print(f"  候選人（收入≥5萬）：{len(candidates)} 位，對到政黨 {matched} 位")
 
     # 各職位 × 政黨 募款彙總

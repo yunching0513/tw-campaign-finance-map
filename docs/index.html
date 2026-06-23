@@ -332,6 +332,24 @@
      background:rgba(255,255,255,.9);
      color:var(--ink-faint); font-family:var(--body); font-size:13px; text-align:center; padding:30px}
   .nw-empty[hidden]{display:none}
+
+  /* ===== 小資當選人 ===== */
+  #tfList{margin-top:8px}
+  .tf-row{display:grid; grid-template-columns:30px 1.6fr 2.4fr; align-items:center;
+     gap:12px; padding:9px 4px; border-bottom:1px solid var(--line); cursor:pointer}
+  .tf-row:hover{background:var(--panel-soft)}
+  .tf-rank{font-family:var(--latin); font-size:18px; color:var(--ink-faint); text-align:center}
+  .tf-row.win .tf-rank{color:var(--shu-solid)}
+  .tf-id{display:flex; align-items:center; gap:7px; min-width:0}
+  .tf-id .nm{font-family:var(--serif); font-weight:600; color:var(--ink-strong);
+     white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .tf-id .meta{font-size:11px; color:var(--ink-faint); letter-spacing:var(--ls); white-space:nowrap}
+  .tf-bar{display:flex; align-items:center; gap:10px}
+  .tf-track{flex:1; height:13px; background:var(--panel-soft); position:relative; border-radius:2px; overflow:hidden}
+  .tf-fill{position:absolute; left:0; top:0; bottom:0; border-radius:2px}
+  .tf-val{font-family:var(--latin); font-size:15px; color:var(--ink-strong); white-space:nowrap; min-width:96px; text-align:right}
+  .tf-val small{font-family:var(--body); font-size:10.5px; color:var(--ink-faint); letter-spacing:.02em}
+  .tf-empty{padding:30px 6px; color:var(--ink-faint); font-size:13px}
 </style>
 </head>
 <body>
@@ -349,6 +367,7 @@
     <button data-v="network">政商網絡</button>
     <button data-v="party">政黨比較</button>
     <button data-v="industry">產業比較</button>
+    <button data-v="thrift">小資當選人</button>
   </div>
 
   <div class="search-wrap">
@@ -464,6 +483,29 @@
       <div id="nwLegend" class="nw-legend"></div>
       <div id="nwEmpty" class="nw-empty" hidden></div>
     </figure>
+  </div>
+
+  <div id="thriftView" hidden>
+    <div class="donor-bar">
+      <span class="mt">職位</span>
+      <select id="tfOffice" class="sel"></select>
+      <span class="mt">年度</span>
+      <select id="tfYear" class="sel"></select>
+      <span class="mt">指標</span>
+      <div class="toggle" id="tfMetric">
+        <button data-m="thrift" class="on">最省當選</button>
+        <button data-m="cp">選票 CP 值</button>
+      </div>
+      <div class="toggle" id="tfScope" hidden>
+        <button data-s="elected" class="on">僅當選</button>
+        <button data-s="all">含落選</button>
+      </div>
+      <span class="mt" id="tfNote" style="margin-left:auto"></span>
+    </div>
+    <p class="lede" style="margin:2px 0 8px"><b>「小資當選人」</b>：同職位、同年度中，<b>花最少政治獻金卻當選</b>的人——
+      資源不等於選票。切到<b>「選票 CP 值」</b>看<b>每一塊錢政治獻金換到多少票</b>（得票數 ÷ 獻金）。
+      當選與否取自中選會；得票數目前涵蓋<b>立法委員</b>（其餘職位之票數陸續補上）。</p>
+    <div id="tfList"></div>
   </div>
 
   <div class="modal" id="candModal" hidden>
@@ -816,6 +858,7 @@ function setView(v, highlightKey){
   document.getElementById('partyView').hidden = (v!=='party');
   document.getElementById('industryView').hidden = (v!=='industry');
   document.getElementById('networkView').hidden = (v!=='network');
+  document.getElementById('thriftView').hidden = (v!=='thrift');
   document.querySelectorAll('#viewTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
   if(v==='donor'){
     if(DATA_READY){ renderCompanies(highlightKey); }
@@ -831,6 +874,13 @@ function setView(v, highlightKey){
       document.getElementById('nwCount').textContent='載入中…';
       showNetworkEmpty('載入企業金主資料中…');
       ensureData().then(()=>{ if(view==='network') setupNetwork(); });
+    }
+  }
+  if(v==='thrift'){
+    if(DATA_READY){ setupThrift(); }
+    else {
+      document.getElementById('tfList').innerHTML='<p class="tf-empty">載入候選人資料中…</p>';
+      ensureData().then(()=>{ if(view==='thrift') setupThrift(); });
     }
   }
   if(v==='party') renderParty();
@@ -1239,6 +1289,70 @@ function moveNwTip(ev){
   if(x+tw>wrap.width) x=ev.clientX-wrap.left-tw-14;
   if(y+th>wrap.height) y=ev.clientY-wrap.top-th-14;
   nwTip.style.left=Math.max(4,x)+'px'; nwTip.style.top=Math.max(4,y)+'px';
+}
+
+// ===== 小資當選人 / 選票 CP 值 =====
+const tfOffice=document.getElementById('tfOffice'), tfYear=document.getElementById('tfYear'),
+      tfMetric=document.getElementById('tfMetric'), tfScope=document.getElementById('tfScope'),
+      tfList=document.getElementById('tfList'), tfNote=document.getElementById('tfNote');
+let tfInit=false, tfMetricKey='thrift', tfScopeKey='elected';
+const OFFICE_HAS_VOTES=new Set(['立法委員']);
+
+function setupThrift(){
+  if(!tfInit){
+    tfInit=true;
+    tfOffice.innerHTML=offices.map(o=>`<option value="${o.label}">${o.label}</option>`).join('');
+    const def=offices.find(o=>o.label==='立法委員')||offices[0];
+    tfOffice.value=def.label; refreshTfYears();
+    tfOffice.addEventListener('change',()=>{ refreshTfYears(); renderThrift(); });
+    tfYear.addEventListener('change',renderThrift);
+    tfMetric.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+      [...tfMetric.children].forEach(x=>x.classList.toggle('on',x===b)); tfMetricKey=b.dataset.m;
+      tfScope.hidden=(tfMetricKey!=='cp'); renderThrift(); });
+    tfScope.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+      [...tfScope.children].forEach(x=>x.classList.toggle('on',x===b)); tfScopeKey=b.dataset.s; renderThrift(); });
+  }
+  renderThrift();
+}
+function refreshTfYears(){
+  const o=offices.find(x=>x.label===tfOffice.value)||offices[0];
+  tfYear.innerHTML=o.years.map(y=>`<option value="${y}">${y} 年</option>`).join('');
+  tfYear.value=o.years[o.years.length-1];
+}
+function renderThrift(){
+  if(!DATA_READY) return;
+  const office=tfOffice.value, year=+tfYear.value, metric=tfMetricKey;
+  let rows=Object.entries(CAND).filter(([k,d])=>d.office===office && d.year===year);
+  let note='';
+  if(metric==='cp'){
+    rows=rows.filter(([k,d])=>d.votes && d.total>0);
+    if(tfScopeKey==='elected') rows=rows.filter(([k,d])=>d.elected);
+    rows.sort((a,b)=>(b[1].votes/b[1].total)-(a[1].votes/a[1].total));
+    if(!rows.length) note = OFFICE_HAS_VOTES.has(office)?'此年度無資料。':'此職位尚無得票數資料（目前涵蓋立法委員；其餘陸續補上）。';
+  }else{
+    rows=rows.filter(([k,d])=>d.elected);
+    rows.sort((a,b)=>a[1].total-b[1].total);
+    if(!rows.length) note='此職位／年度查無當選者資料。';
+  }
+  const valOf=metric==='cp' ? d=>d.votes/d.total : d=>d.total;
+  const N=30, shown=rows.slice(0,N);
+  tfNote.textContent = rows.length ? `${office}・${year}：${metric==='cp'?'每元得票（票/元）':'最省當選'} ${rows.length} 人${rows.length>N?'｜前 '+N:''}` : '';
+  if(!shown.length){ tfList.innerHTML=`<p class="tf-empty">${note}</p>`; return; }
+  const max=Math.max(...rows.map(([k,d])=>valOf(d)))||1;
+  tfList.innerHTML=shown.map(([k,d],i)=>{
+    const v=valOf(d), w=Math.max(2.5, v/max*100);
+    const col = metric==='cp' ? 'var(--midori-solid)' : pColor(d.party||'其他');
+    const valHTML = metric==='cp'
+      ? `${(d.votes/d.total).toFixed(3)}<small> 票/元</small>`
+      : `${fmtNT(d.total)}${d.votes?` <small>${fmtInt(d.votes)} 票</small>`:''}`;
+    return `<div class="tf-row${d.elected?' win':''}" data-cand="${k}">
+      <span class="tf-rank">${i+1}</span>
+      <span class="tf-id">${pDot(d.party)}<span class="nm">${d.name}</span>
+        <span class="meta">${d.district}${d.elected?'·當選':'·落選'}</span></span>
+      <span class="tf-bar"><span class="tf-track"><span class="tf-fill" style="width:${w}%;background:${col}"></span></span>
+        <span class="tf-val">${valHTML}</span></span>
+    </div>`;
+  }).join('');
 }
 
 natStats(); render(null);
