@@ -332,6 +332,33 @@
      background:rgba(255,255,255,.9);
      color:var(--ink-faint); font-family:var(--body); font-size:13px; text-align:center; padding:30px}
   .nw-empty[hidden]{display:none}
+  /* 拖曳 */
+  .nw-node{cursor:grab}
+  .nw-node.dragging{cursor:grabbing !important}
+  /* 投影模式隱藏雙向篩選 */
+  #networkView.nw-proj .nw-bip-only{display:none}
+  /* 公平性分析 */
+  .fair-card{background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:18px 20px;margin:0 0 14px}
+  .fair-label{font-size:11px;letter-spacing:var(--ls-wide);color:var(--ink-faint);text-transform:uppercase;font-family:var(--body);margin-bottom:4px}
+  .fair-gini{font-family:var(--latin);font-size:36px;font-weight:600;color:var(--ink-strong);letter-spacing:0;line-height:1.1}
+  .fair-gini small{font-family:var(--body);font-size:13px;font-weight:400;color:var(--ink-faint);letter-spacing:var(--ls)}
+  .fair-note{font-family:var(--body);font-size:12.5px;line-height:1.85;color:var(--ink);margin:0 0 8px;letter-spacing:.01em}
+  .fair-note p{margin:0 0 7px}
+  .fair-note b{color:var(--shu-solid);font-weight:500}
+  .fair-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:2px;overflow:hidden;margin:12px 0 16px}
+  .fair-stat{background:var(--panel);padding:13px 15px}
+  .fair-stat .fk{font-size:10.5px;letter-spacing:var(--ls-wide);color:var(--ink-faint);font-family:var(--body);text-transform:uppercase}
+  .fair-stat .fv{font-family:var(--latin);font-size:26px;font-weight:600;color:var(--ink-strong);letter-spacing:0;margin-top:3px}
+  .fair-stat .fs{font-size:11px;color:var(--ink-faint);margin-top:1px}
+  #lorenzSvg{display:block;width:100%;max-width:400px;height:auto}
+  .lrz-eq{fill:none;stroke:#ccc;stroke-dasharray:4 4;stroke-width:1}
+  .lrz-area{fill:var(--shu-soft);opacity:.55}
+  .lrz-line{fill:none;stroke:var(--shu-solid);stroke-width:2.5;stroke-linejoin:round}
+  .lrz-ax{font-family:var(--body);fill:var(--ink-faint);font-size:10.5px}
+  .fair-table{width:100%;border-collapse:collapse;margin:4px 0;font-size:12px}
+  .fair-table th{font-size:10.5px;letter-spacing:var(--ls);color:var(--ink-faint);font-weight:400;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid var(--line);text-align:left}
+  .fair-table td{padding:5px 6px;border-bottom:1px solid var(--line)}
+  .fair-table .fv2{font-family:var(--latin);font-size:14px;color:var(--ink-strong)}
 
   /* ===== 小資當選人 ===== */
   #tfList{margin-top:8px}
@@ -479,6 +506,10 @@
   </div>
 
   <div id="networkView" hidden>
+    <div class="subnav" id="nwSubNav">
+      <button data-ns="bip" class="on">企業─候選人</button>
+      <button data-ns="proj">候選人共同金主</button>
+    </div>
     <div class="donor-bar">
       <span class="mt">縣市</span>
       <select id="nwCounty" class="sel"></select>
@@ -490,17 +521,18 @@
         <option value="land">土地開發・建商</option>
         <option value="other">其他產業</option>
       </select>
-      <span class="mt">範圍</span>
-      <div class="toggle" id="nwDeg">
+      <span class="mt nw-bip-only">範圍</span>
+      <div class="toggle nw-bip-only" id="nwDeg">
         <button data-d="2" class="on">串連 ≥2 位</button>
         <button data-d="1">含單一</button>
       </div>
       <span class="mt" id="nwCount" style="margin-left:auto"></span>
     </div>
-    <p class="lede" style="margin:2px 0 8px">以<b>單一縣市</b>為單位的地方政商關係網絡。
+    <p class="lede" id="nwLede" style="margin:2px 0 8px">以<b>單一縣市</b>為單位的地方政商關係網絡。
       圓點為節點：<b style="color:var(--shu-solid)">企業金主</b>（依產業著色）與<b style="color:#2B5C9E">候選人</b>（依政黨著色），
       連線粗細＝捐贈金額。同一企業<b>橫向串連多位候選人</b>（押寶），即構成地方政商網——
-      <b>點企業</b>看其跨選區全網，<b>點候選人</b>看其完整金主。僅收錄捐給 2 位以上候選人的企業。</p>
+      <b>點企業</b>看其跨選區全網，<b>點候選人</b>看其完整金主。僅收錄捐給 2 位以上候選人的企業。
+      <b>節點可拖曳</b>重新排列版面。</p>
     <figure class="nw-wrap" style="margin:0">
       <svg id="nwSvg" preserveAspectRatio="xMidYMid meet" aria-label="地方政商關係網絡圖"></svg>
       <div id="nwTip" class="nw-tip" hidden></div>
@@ -513,6 +545,7 @@
     <div class="subnav" id="tfSubNav">
       <button data-s="rank" class="on">排行比較</button>
       <button data-s="reg">迴歸分析</button>
+      <button data-s="fair">公平性分析</button>
     </div>
     <div class="donor-bar">
       <span class="mt tf-ofyr">職位</span>
@@ -533,6 +566,7 @@
     <div id="tfParty"></div>
     <div id="tfList"></div>
     <div id="tfReg" hidden></div>
+    <div id="tfFair" hidden></div>
   </div>
 
   <div class="modal" id="candModal" hidden>
@@ -1144,26 +1178,69 @@ const nwSvg=document.getElementById('nwSvg'), nwTip=document.getElementById('nwT
       nwCountEl=document.getElementById('nwCount'), nwCountySel=document.getElementById('nwCounty'),
       nwYearSel=document.getElementById('nwYear'), nwIndSel=document.getElementById('nwInd'),
       nwDegSel=document.getElementById('nwDeg');
-const NW_W=960, NW_H=680, SVGNS='http://www.w3.org/2000/svg';
-let nwInit=false;
+const NW_W=1100, NW_H=800, SVGNS='http://www.w3.org/2000/svg';
+let nwInit=false, nwSub='bip';
+let nwDragState=null, nwLastMoved=false;
+let _nwNodeEls=[], _nwEdgeEls=[], _nwNodeEdges=[], _nwNodes=[], _nwLinks=[];
 function svgEl(t,a){ const e=document.createElementNS(SVGNS,t); for(const k in a) e.setAttribute(k,a[k]); return e; }
 function showNetworkEmpty(msg){ nwSvg.innerHTML=''; nwLegendEl.innerHTML=''; nwEmptyEl.hidden=false; nwEmptyEl.textContent=msg; }
 function nwMinDeg(){ const b=nwDegSel.querySelector('button.on'); return b?+b.dataset.d:2; }
+function svgCoords(ev, svg){
+  const r=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal;
+  const sx=vb.width/r.width, sy=vb.height/r.height;
+  const cx=ev.touches?ev.touches[0].clientX:ev.clientX;
+  const cy=ev.touches?ev.touches[0].clientY:ev.clientY;
+  return {x:(cx-r.left)*sx, y:(cy-r.top)*sy};
+}
+function nwMoveHandler(ev){
+  if(!nwDragState) return;
+  if(ev.cancelable) ev.preventDefault();
+  const {ni, n, startX, startY, origX, origY}=nwDragState;
+  const pt=svgCoords(ev, nwSvg);
+  n.x=Math.max(n.r+2, Math.min(NW_W-n.r-2, origX+pt.x-startX));
+  n.y=Math.max(n.r+2, Math.min(NW_H-n.r-2, origY+pt.y-startY));
+  if(Math.abs(n.x-origX)>2||Math.abs(n.y-origY)>2) nwDragState.moved=true;
+  const el=_nwNodeEls[ni]; if(!el) return;
+  el.circle.setAttribute('cx',n.x.toFixed(1)); el.circle.setAttribute('cy',n.y.toFixed(1));
+  if(el.text){ el.text.setAttribute('x',n.x.toFixed(1)); el.text.setAttribute('y',(n.y-n.r-3).toFixed(1)); }
+  _nwNodeEdges[ni].forEach(({e,isSrc})=>{
+    e.setAttribute(isSrc?'x1':'x2',n.x.toFixed(1)); e.setAttribute(isSrc?'y1':'y2',n.y.toFixed(1)); });
+}
+function nwEndHandler(){
+  if(!nwDragState) return;
+  nwLastMoved=nwDragState.moved||false;
+  nwDragState.g.classList.remove('dragging');
+  nwDragState=null; nwTip.hidden=true;
+}
 function yearsForCounty(county){ const ys=new Set();
   companies.forEach(c=>c.to.forEach(t=>{ if(t.district===county) ys.add(t.year); })); return [...ys].sort((a,b)=>b-a); }
 function defaultNwYear(ys){ for(const y of [2022,2018,2024,2020]) if(ys.includes(y)) return y; return ys[0]; }
 
+const NW_LEDE_BIP='以<b>單一縣市</b>為單位的地方政商關係網絡。圓點為節點：<b style="color:var(--shu-solid)">企業金主</b>（依產業著色）與<b style="color:#2B5C9E">候選人</b>（依政黨著色），連線粗細＝捐贈金額。同一企業<b>橫向串連多位候選人</b>（押寶），即構成地方政商網——<b>點企業</b>看其跨選區全網，<b>點候選人</b>看其完整金主。僅收錄捐給 2 位以上候選人的企業。<b>節點可拖曳</b>重新排列。';
+const NW_LEDE_PROJ='候選人投影圖（Projection Graph）：以<b>候選人</b>為節點，若兩位候選人<b>接受同一家企業捐贈</b>即相連——連線越粗代表共同金主越多。聚集的候選人往往被同一批企業同時押寶；跨政黨的連線揭示政商資本的<b>跨黨布局</b>。<b>節點可拖曳</b>重新排列。';
 function setupNetwork(){
   nwEmptyEl.hidden=true;
   if(!nwInit){
     nwInit=true;
-    nwCountySel.innerHTML=D.counties.map(c=>`<option>${c.name}</option>`).join('');  // 已依捐贈總額排序
+    nwCountySel.innerHTML=D.counties.map(c=>`<option>${c.name}</option>`).join('');
     refreshNwYears();
     nwCountySel.addEventListener('change',()=>{ refreshNwYears(); renderNetwork(); });
     nwYearSel.addEventListener('change',renderNetwork);
     nwIndSel.addEventListener('change',renderNetwork);
     nwDegSel.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
       [...nwDegSel.children].forEach(x=>x.classList.toggle('on',x===b)); renderNetwork(); });
+    document.getElementById('nwSubNav').addEventListener('click',e=>{
+      const b=e.target.closest('button[data-ns]'); if(!b) return;
+      [...document.getElementById('nwSubNav').querySelectorAll('button')].forEach(x=>x.classList.toggle('on',x===b));
+      nwSub=b.dataset.ns;
+      document.getElementById('networkView').classList.toggle('nw-proj', nwSub==='proj');
+      document.getElementById('nwLede').innerHTML = nwSub==='proj' ? NW_LEDE_PROJ : NW_LEDE_BIP;
+      renderNetwork();
+    });
+    document.addEventListener('mousemove', nwMoveHandler);
+    document.addEventListener('mouseup', nwEndHandler);
+    document.addEventListener('touchmove', nwMoveHandler, {passive:false});
+    document.addEventListener('touchend', nwEndHandler);
   }
   renderNetwork();
 }
@@ -1235,7 +1312,9 @@ function buildNwLegend(comps, cands){
   nwLegendEl.innerHTML=`<span class="lg" style="color:#aaa">企業</span>${li}　<span class="lg" style="color:#aaa">候選人</span>${lp}`;
 }
 
-function renderNetwork(){
+function renderNetwork(){ if(nwSub==='proj') renderProjection(); else renderBipartite(); }
+
+function renderBipartite(){
   if(!DATA_READY) return;
   const county=nwCountySel.value, year=nwYearSel.value, ind=nwIndSel.value, md=nwMinDeg();
   const {nodes, links, comps, cands}=buildNetwork(county, year, ind, md);
@@ -1250,11 +1329,15 @@ function renderNetwork(){
   nodes.forEach(n=>{ n.r = n.kind==='corp' ? 4+Math.sqrt(n.total/maxC)*15 : 5+Math.sqrt(n.total/maxP)*17; });
   const maxA=Math.max(...links.map(l=>l.amount),1);
   nwSvg.innerHTML='';
+  _nwNodes=nodes; _nwLinks=links;
+  _nwNodeEls=new Array(nodes.length); _nwEdgeEls=[]; _nwNodeEdges=nodes.map(()=>[]);
   const gE=svgEl('g',{}), gN=svgEl('g',{});
   links.forEach((l,i)=>{ const a=nodes[l.s], b=nodes[l.t];
     const ln=svgEl('line',{x1:a.x.toFixed(1),y1:a.y.toFixed(1),x2:b.x.toFixed(1),y2:b.y.toFixed(1),
       class:'nw-edge','stroke-width':(0.5+Math.sqrt(l.amount/maxA)*3.2).toFixed(2),
-      stroke:indColor(l.ind),'stroke-opacity':0.5}); gE.appendChild(ln); });
+      stroke:indColor(l.ind),'stroke-opacity':0.5});
+    gE.appendChild(ln); _nwEdgeEls.push(ln);
+    _nwNodeEdges[l.s].push({e:ln,isSrc:true}); _nwNodeEdges[l.t].push({e:ln,isSrc:false}); });
   const labSet=new Set([
     ...cands.slice().sort((a,b)=>b.total-a.total).slice(0,14),
     ...comps.slice().sort((a,b)=>b.total-a.total).slice(0,8)
@@ -1262,24 +1345,102 @@ function renderNetwork(){
   nodes.forEach((n,ni)=>{
     const g=svgEl('g',{class:'nw-node'}); g.dataset.ni=ni;
     const fill=n.kind==='corp'?indColor(n.ind):pColor(n.party);
-    const c=svgEl('circle',{cx:n.x.toFixed(1),cy:n.y.toFixed(1),r:n.r.toFixed(1),fill});
-    if(n.kind==='cand') c.setAttribute('fill-opacity','0.92');
-    g.appendChild(c);
+    const circle=svgEl('circle',{cx:n.x.toFixed(1),cy:n.y.toFixed(1),r:n.r.toFixed(1),fill});
+    if(n.kind==='cand') circle.setAttribute('fill-opacity','0.92');
+    g.appendChild(circle);
+    let text=null;
     if(labSet.has(n.id)){
-      const t=svgEl('text',{x:n.x.toFixed(1),y:(n.y-n.r-3).toFixed(1),'text-anchor':'middle',
+      text=svgEl('text',{x:n.x.toFixed(1),y:(n.y-n.r-3).toFixed(1),'text-anchor':'middle',
         'font-size':n.kind==='cand'?'12':'10.5','font-weight':n.kind==='cand'?'500':'400'});
-      t.textContent=n.name.length>10?n.name.slice(0,9)+'…':n.name; g.appendChild(t);
+      text.textContent=n.name.length>10?n.name.slice(0,9)+'…':n.name; g.appendChild(text);
     }
-    gN.appendChild(g);
+    gN.appendChild(g); _nwNodeEls[ni]={circle, text, g};
   });
   nwSvg.appendChild(gE); nwSvg.appendChild(gN);
   const totalNT=comps.reduce((s,n)=>s+n.total,0);
   nwCountEl.innerHTML=`${county}・${year} 年：<b>${comps.length}</b> 家企業 × <b>${cands.length}</b> 位候選人｜${fmtNT(totalNT)}`;
   buildNwLegend(comps, cands);
-  bindNwInteractions(nodes, links);
+  bindNwInteractions(nodes, links, n=>{
+    if(n.kind==='cand') openCandidate(n.key);
+    else { indFilter='all'; scope='all'; scopeSel.value='all'; indSel.value='all'; setView('donor', n.ckey); }
+  }, showNwTip);
 }
 
-function bindNwInteractions(nodes, links){
+function buildProjection(county, year, ind){
+  const candMap=new Map(), edgeAcc=new Map();
+  companies.forEach(c=>{
+    if(ind==='land'&&!c.land) return;
+    if(ind==='other'&&c.land) return;
+    const recs=c.to.filter(t=>t.district===county&&String(t.year)===String(year));
+    if(!recs.length) return;
+    recs.forEach(t=>{
+      const key=`${t.name}|${t.office}|${t.district}|${t.year}`;
+      if(!candMap.has(key)) candMap.set(key,{id:'P:'+key,key,kind:'cand',name:t.name,party:t.party||'未標示',office:t.office,year:t.year,total:0,deg:0});
+      const p=candMap.get(key); p.total+=t.amount; p.deg++;
+    });
+    for(let i=0;i<recs.length;i++) for(let j=i+1;j<recs.length;j++){
+      const ka=`${recs[i].name}|${recs[i].office}|${recs[i].district}|${recs[i].year}`;
+      const kb=`${recs[j].name}|${recs[j].office}|${recs[j].district}|${recs[j].year}`;
+      const ek=ka<kb?ka+'||'+kb:kb+'||'+ka;
+      if(!edgeAcc.has(ek)) edgeAcc.set(ek,{ka:ka<kb?ka:kb,kb:ka<kb?kb:ka,shared:0,amount:0});
+      const e=edgeAcc.get(ek); e.shared++; e.amount+=recs[i].amount+recs[j].amount;
+    }
+  });
+  const allCands=[...candMap.values()].sort((a,b)=>b.total-a.total).slice(0,55);
+  const keepKeys=new Set(allCands.map(n=>n.key));
+  const idx=new Map(allCands.map((n,i)=>[n.key,i]));
+  const links=[...edgeAcc.values()]
+    .filter(e=>keepKeys.has(e.ka)&&keepKeys.has(e.kb))
+    .map(e=>({s:idx.get(e.ka),t:idx.get(e.kb),shared:e.shared,amount:e.amount,ind:''}));
+  return {nodes:allCands, links};
+}
+
+function renderProjection(){
+  if(!DATA_READY) return;
+  const county=nwCountySel.value, year=nwYearSel.value, ind=nwIndSel.value;
+  const {nodes, links}=buildProjection(county, year, ind);
+  nwSvg.setAttribute('viewBox',`0 0 ${NW_W} ${NW_H}`);
+  if(!nodes.length){ showNetworkEmpty(`${county}・${year} 年｜無候選人政治獻金資料。`); return; }
+  nwEmptyEl.hidden=true;
+  const maxT=Math.max(...nodes.map(n=>n.total),1);
+  nodes.forEach(n=>{ n.r=4+Math.sqrt(n.total/maxT)*20; });
+  nwLayout(nodes, links, NW_W, NW_H);
+  const maxS=Math.max(...links.map(l=>l.shared),1);
+  nwSvg.innerHTML='';
+  _nwNodes=nodes; _nwLinks=links;
+  _nwNodeEls=new Array(nodes.length); _nwEdgeEls=[]; _nwNodeEdges=nodes.map(()=>[]);
+  const gE=svgEl('g',{}), gN=svgEl('g',{});
+  links.forEach((l,i)=>{ const a=nodes[l.s], b=nodes[l.t];
+    const ln=svgEl('line',{x1:a.x.toFixed(1),y1:a.y.toFixed(1),x2:b.x.toFixed(1),y2:b.y.toFixed(1),
+      class:'nw-edge','stroke-width':(0.5+Math.sqrt(l.shared/maxS)*4).toFixed(2),
+      stroke:'#9a9a9a','stroke-opacity':0.35});
+    gE.appendChild(ln); _nwEdgeEls.push(ln);
+    _nwNodeEdges[l.s].push({e:ln,isSrc:true}); _nwNodeEdges[l.t].push({e:ln,isSrc:false}); });
+  const labSet=new Set(nodes.slice().sort((a,b)=>b.total-a.total).slice(0,22).map(n=>n.id));
+  nodes.forEach((n,ni)=>{
+    const g=svgEl('g',{class:'nw-node'}); g.dataset.ni=ni;
+    const circle=svgEl('circle',{cx:n.x.toFixed(1),cy:n.y.toFixed(1),r:n.r.toFixed(1),fill:pColor(n.party),'fill-opacity':'0.88'});
+    g.appendChild(circle);
+    let text=null;
+    if(labSet.has(n.id)){
+      text=svgEl('text',{x:n.x.toFixed(1),y:(n.y-n.r-3).toFixed(1),'text-anchor':'middle','font-size':'11.5','font-weight':'500'});
+      text.textContent=n.name.length>7?n.name.slice(0,6)+'…':n.name; g.appendChild(text);
+    }
+    gN.appendChild(g); _nwNodeEls[ni]={circle, text, g};
+  });
+  nwSvg.appendChild(gE); nwSvg.appendChild(gN);
+  const parties=[...new Set(nodes.map(n=>n.party))];
+  nwLegendEl.innerHTML=`<span class="lg" style="color:#aaa">候選人</span>`+parties.map(p=>`<span class="lg"><i style="background:${pColor(p)}"></i>${p}</span>`).join('');
+  nwCountEl.innerHTML=`${county}・${year} 年：<b>${nodes.length}</b> 位候選人・<b>${links.length}</b> 條共同金主連線`;
+  bindNwInteractions(nodes, links, n=>openCandidate(n.key), (n,ev)=>{
+    nwTip.innerHTML=`<div class="nt-h">${n.name}　<span class="nt-s">${n.party}</span></div>
+      <div class="nt-s">${n.office}・${n.year} 年</div>
+      此縣市接受 <b>${n.deg}</b> 家企業・${fmtNT(n.total)}<div class="nt-s">點擊看完整金主 →</div>`;
+    nwTip.hidden=false; moveNwTip(ev);
+  });
+}
+
+function bindNwInteractions(nodes, links, onClickFn, showTipFn){
   const adj=nodes.map(()=>new Set());
   links.forEach(l=>{ adj[l.s].add(l.t); adj[l.t].add(l.s); });
   const nodeGs=[...nwSvg.querySelectorAll('.nw-node')], edgeLs=[...nwSvg.querySelectorAll('.nw-edge')];
@@ -1288,13 +1449,21 @@ function bindNwInteractions(nodes, links){
     edgeLs.forEach((ln,i)=>ln.classList.toggle('nw-faded', links[i].s!==ni && links[i].t!==ni)); };
   const clear=()=>{ nodeGs.forEach(g=>g.classList.remove('nw-faded')); edgeLs.forEach(l=>l.classList.remove('nw-faded')); };
   nodeGs.forEach(g=>{ const ni=+g.dataset.ni, n=nodes[ni];
-    g.addEventListener('mouseenter',ev=>{ focus(ni); showNwTip(n, ev); });
-    g.addEventListener('mousemove',moveNwTip);
-    g.addEventListener('mouseleave',()=>{ clear(); nwTip.hidden=true; });
-    g.addEventListener('click',()=>{
-      if(n.kind==='cand') openCandidate(n.key);
-      else { indFilter='all'; scope='all'; scopeSel.value='all'; indSel.value='all'; setView('donor', n.ckey); }
+    g.addEventListener('mouseenter',ev=>{ if(nwDragState) return; focus(ni); showTipFn(n, ev); });
+    g.addEventListener('mousemove',ev=>{ if(nwDragState) return; moveNwTip(ev); });
+    g.addEventListener('mouseleave',()=>{ if(nwDragState) return; clear(); nwTip.hidden=true; });
+    g.addEventListener('mousedown',ev=>{
+      ev.preventDefault(); nwTip.hidden=true; nwLastMoved=false;
+      const pt=svgCoords(ev, nwSvg);
+      nwDragState={ni, n, g, startX:pt.x, startY:pt.y, origX:n.x, origY:n.y, moved:false};
+      g.classList.add('dragging');
     });
+    g.addEventListener('touchstart',ev=>{
+      const pt=svgCoords(ev, nwSvg); nwLastMoved=false;
+      nwDragState={ni, n, g, startX:pt.x, startY:pt.y, origX:n.x, origY:n.y, moved:false};
+      g.classList.add('dragging');
+    },{passive:true});
+    g.addEventListener('click',()=>{ if(nwLastMoved){ nwLastMoved=false; return; } onClickFn(n); });
   });
 }
 function showNwTip(n, ev){
@@ -1325,12 +1494,13 @@ const tfOffice=document.getElementById('tfOffice'), tfYear=document.getElementBy
       tfSubNav=document.getElementById('tfSubNav'), tfLede=document.getElementById('tfLede'),
       tfReg=document.getElementById('tfReg');
 let tfInit=false, tfScopeKey='elected', tfSub='rank';
-function renderTf(){ if(tfSub==='reg') renderRegression(); else renderCost(); }
+function renderTf(){ if(tfSub==='reg') renderRegression(); else if(tfSub==='fair') renderFairness(); else renderCost(); }
 function applyTfSub(){
-  const reg = tfSub==='reg';
-  document.querySelectorAll('#thriftView .tf-ofyr').forEach(el=>{ el.style.display = reg?'none':''; });
-  tfParty.hidden=reg; tfList.hidden=reg; tfLede.hidden=reg; tfReg.hidden=!reg;
-  if(reg) tfNote.textContent='';
+  const reg=tfSub==='reg', fair=tfSub==='fair';
+  document.querySelectorAll('#thriftView .tf-ofyr').forEach(el=>{ el.style.display=(reg||fair)?'none':''; });
+  tfParty.hidden=reg||fair; tfList.hidden=reg||fair; tfLede.hidden=reg||fair;
+  tfReg.hidden=!reg; document.getElementById('tfFair').hidden=!fair;
+  if(reg||fair) tfNote.textContent='';
   renderTf();
 }
 const OFFICE_HAS_VOTES=new Set(['立法委員','縣市長','議員']);
@@ -1501,6 +1671,89 @@ function forestSVG(pr){
     s+=`<text class="fp-mult" x="${W-padR+8}" y="${cy+4}" font-size="12.5">×${o.mult.toFixed(2)}${sig?'':' <tspan fill="#9a9a9a">n.s.</tspan>'}</text>`;
   });
   return s+'</svg>';
+}
+
+// ===== 公平性分析 =====
+function _gini(arr){
+  if(!arr.length) return 0;
+  const s=arr.slice().sort((a,b)=>a-b), n=s.length, tot=s.reduce((a,b)=>a+b,0);
+  if(!tot) return 0;
+  let sum=0; s.forEach((v,i)=>{ sum+=(2*(i+1)-n-1)*v; }); return sum/(n*tot);
+}
+function _lorenzPts(arr){
+  const s=arr.slice().sort((a,b)=>a-b), n=s.length, tot=s.reduce((a,b)=>a+b,0);
+  const pts=[{x:0,y:0}]; let cy=0;
+  s.forEach((v,i)=>{ cy+=v; pts.push({x:(i+1)/n, y:cy/tot}); }); return pts;
+}
+function _lorenzSVG(pts){
+  const W=360, H=260, pad=30, pw=W-pad*2, ph=H-pad*2;
+  const xp=x=>pad+x*pw, yp=y=>H-pad-y*ph;
+  let d=pts.map((p,i)=>`${i?'L':'M'}${xp(p.x).toFixed(1)},${yp(p.y).toFixed(1)}`).join('');
+  let da=d+`L${xp(1).toFixed(1)},${yp(0).toFixed(1)}L${xp(0).toFixed(1)},${yp(0).toFixed(1)}Z`;
+  const tks=[0,0.25,0.5,0.75,1];
+  const grid=tks.map(t=>`<line x1="${xp(t).toFixed(1)}" y1="${yp(0).toFixed(1)}" x2="${xp(t).toFixed(1)}" y2="${yp(1).toFixed(1)}" stroke="#eee" stroke-width="1"/>
+<line x1="${xp(0).toFixed(1)}" y1="${yp(t).toFixed(1)}" x2="${xp(1).toFixed(1)}" y2="${yp(t).toFixed(1)}" stroke="#eee" stroke-width="1"/>`).join('');
+  const axL=tks.map(t=>`<text x="${xp(t).toFixed(1)}" y="${(yp(0)+14).toFixed(1)}" class="lrz-ax" text-anchor="middle">${Math.round(t*100)}%</text>`).join('');
+  const axR=tks.filter(t=>t>0).map(t=>`<text x="${(xp(0)-5).toFixed(1)}" y="${(yp(t)+3).toFixed(1)}" class="lrz-ax" text-anchor="end">${Math.round(t*100)}%</text>`).join('');
+  return `<svg id="lorenzSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${grid}
+<line x1="${xp(0)}" y1="${yp(0)}" x2="${xp(1)}" y2="${yp(1)}" class="lrz-eq"/>
+<path d="${da}" class="lrz-area"/><path d="${d}" class="lrz-line"/>
+${axL}${axR}
+<text x="${xp(.5)}" y="${(H-4).toFixed(1)}" class="lrz-ax" text-anchor="middle">候選人累計%</text>
+<text x="${(pad-22).toFixed(1)}" y="${yp(.5)}" class="lrz-ax" text-anchor="middle" transform="rotate(-90 ${pad-22} ${yp(.5)})">獻金累計%</text>
+</svg>`;
+}
+function renderFairness(){
+  if(!DATA_READY) return;
+  const tfFair=document.getElementById('tfFair');
+  const all=Object.values(CAND).filter(c=>c.total>0);
+  const tots=all.map(c=>c.total), G=_gini(tots);
+  const pts=_lorenzPts(tots), n=pts.length;
+  const top10=pts[Math.round(n*.9-1)]||{y:0}, bot50=pts[Math.round(n*.5-1)]||{y:0};
+  const top10Share=((1-top10.y)*100).toFixed(1), bot50Share=(bot50.y*100).toFixed(1);
+  const medAll=_median(tots), maxAll=Math.max(...tots);
+  // by party
+  const byP={};
+  all.forEach(c=>{ const p=c.party||'未標示'; (byP[p]=byP[p]||[]).push(c.total); });
+  const pg=Object.entries(byP).filter(([,v])=>v.length>=10)
+    .map(([p,v])=>({p, g:_gini(v), n:v.length, med:_median(v), max:Math.max(...v)}))
+    .sort((a,b)=>b.g-a.g);
+  const partyRows=pg.map(r=>`<tr>
+    <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${pColor(r.p)};margin-right:5px;vertical-align:middle"></span>${r.p}</td>
+    <td class="fv2">${r.g.toFixed(3)}</td><td>${r.n}</td>
+    <td class="fv2">${_nt(r.med)}</td><td>${fmtNT(r.max)}</td></tr>`).join('');
+  tfFair.innerHTML=`
+<div class="fair-card">
+  <div style="display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap">
+    <div style="min-width:200px">
+      <div class="fair-label">獻金分布基尼係數</div>
+      <div class="fair-gini">${G.toFixed(3)} <small>（n=${all.length}）</small></div>
+      <div class="fair-grid" style="margin-top:12px">
+        <div class="fair-stat"><div class="fk">前 10% 候選人</div><div class="fv">${top10Share}%</div><div class="fs">佔全部獻金</div></div>
+        <div class="fair-stat"><div class="fk">後 50% 候選人</div><div class="fv">${bot50Share}%</div><div class="fs">佔全部獻金</div></div>
+        <div class="fair-stat"><div class="fk">最高÷中位數</div><div class="fv">${Math.round(maxAll/medAll)}×</div><div class="fs">集中程度</div></div>
+      </div>
+    </div>
+    ${_lorenzSVG(pts)}
+  </div>
+  <p class="fair-note" style="margin-top:10px">基尼係數 0＝完全均等・1＝極度集中。<b>${G.toFixed(3)}</b> 遠高於台灣個人所得基尼（約 0.34），顯示政治獻金高度集中於少數候選人。洛倫茲曲線（紅線）越偏向右下角，集中程度越高；灰色對角線為完全均等基準。</p>
+</div>
+<div class="fair-card">
+  <div class="fair-label">各政黨獻金集中度</div>
+  <table class="fair-table">
+    <thead><tr><th>政黨</th><th>基尼</th><th>人數</th><th>中位數（元）</th><th>最高</th></tr></thead>
+    <tbody>${partyRows}</tbody>
+  </table>
+</div>
+<div class="fair-card">
+  <div class="fair-label">政治獻金不均與選舉公平性</div>
+  <div class="fair-note">
+    <p><b>法律框架</b>：《政治獻金法》對每筆捐贈設上限（個人對單一候選人每年 NT$30,000；營利事業最高 NT$100,000），但未限制候選人可接受的<b>累計總額</b>，也未設競選支出上限。這使資金雄厚的候選人可合法積累大量企業捐贈。</p>
+    <p><b>資料顯示</b>：本資料集中前 10% 候選人掌握 <b>${top10Share}%</b> 的政治獻金，基尼係數 <b>${G.toFixed(3)}</b>。從迴歸分析可知，民進黨候選人每票成本平均比國民黨高 <b>37–42%</b>，時代力量與台灣基進更高達 <b>71–95%</b>——部分反映小黨在勝算低的選區參選、票數分母小。</p>
+    <p><b>公平性討論</b>：政治學研究顯示，競選資金並非決定勝負的唯一因素——政策立場、現任優勢、地方組織、媒體聲量同樣關鍵。本資料中亦有「小額獻金高得票」的候選人，顯示草根動員可一定程度抵消資金差距。然而，<b>持續的資金不均仍構成結構性障礙</b>：資源稀少的新興政黨與獨立候選人，即便理念受民眾支持，也可能因競選能量不足而難以突破。</p>
+    <p><b>政策含義</b>：若欲降低資金對選舉的扭曲，可考慮：①對候選人總收受獻金設上限；②引入競選支出限制；③擴大小額捐款稅捐抵減，降低個別大企業的相對影響力——這也是英國、加拿大等民主國家已採用的制度方向。</p>
+  </div>
+</div>`;
 }
 
 natStats(); render(null);
