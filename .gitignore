@@ -16,3 +16,6 @@ venv/
 # --- 工具暫存 ---
 .playwright-mcp/
 .DS_Store
+
+# 產生的分享圖卡（社群用，非網站資產）
+thread-cards/

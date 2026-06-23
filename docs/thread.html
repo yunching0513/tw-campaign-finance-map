@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,600;1,500&family=DM+Sans:wght@400;500&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F2F2F2;--panel:#fff;--ink:#333;--ink-strong:#000;--faint:#9a9a9a;
+    --shu:#A6392C;--shu-soft:#E7D3CC;--midori:#2E6B4E;--accent:#b8a98c;--line:#dcdcdc;--soft:#F1F1F1}
+  *{margin:0;box-sizing:border-box}
+  html,body{background:#fff}
+  .card{width:1080px;height:1350px;background:var(--bg);position:relative;overflow:hidden;
+    font-family:"DM Sans","Noto Sans TC",sans-serif;padding:84px 88px;display:flex;flex-direction:column;
+    border-top:8px solid var(--shu)}
+  .hd{display:flex;align-items:baseline;justify-content:space-between;color:var(--faint);
+    font-size:21px;letter-spacing:.12em}
+  .hd .brand{font-family:"Cormorant",serif;font-style:italic;font-weight:600;color:var(--shu);font-size:30px;letter-spacing:.02em}
+  .hd .brand .zh{font-family:"Noto Serif TC",serif;font-style:normal;color:var(--ink-strong);font-weight:600;font-size:24px;margin-left:10px}
+  h1{font-family:"Noto Serif TC",serif;font-weight:700;color:var(--ink-strong);
+    font-size:74px;line-height:1.2;letter-spacing:.01em;margin-top:54px}
+  h1.sm{font-size:62px}
+  .lead{font-size:30px;color:#555;line-height:1.7;margin-top:30px;font-weight:500}
+  .lead b{color:var(--shu);font-weight:700}
+  .ft{margin-top:auto;display:flex;justify-content:space-between;align-items:baseline;
+    color:var(--faint);font-size:20px;letter-spacing:.03em;padding-top:30px;border-top:1px solid var(--line)}
+  .ft b{color:#666;font-weight:500}
+  .big{font-family:"Cormorant",serif;font-weight:600;color:var(--shu);font-size:150px;line-height:.95;letter-spacing:0}
+  .big .u{font-family:"Noto Sans TC";font-size:46px;color:var(--ink);font-weight:500;margin-left:8px}
+
+  /* bars */
+  .bars{margin-top:54px;display:flex;flex-direction:column;gap:26px}
+  .bar{display:flex;align-items:center;gap:22px}
+  .bar .nm{width:200px;flex:none;font-family:"Noto Sans TC";font-weight:500;color:var(--ink-strong);font-size:30px}
+  .bar .tk{flex:1;height:34px;background:var(--soft);border-radius:999px;overflow:hidden}
+  .bar .fl{height:100%;border-radius:999px}
+  .bar .vl{width:160px;flex:none;text-align:right;font-family:"Cormorant",serif;font-weight:600;color:var(--ink-strong);font-size:36px}
+  .bar .vl .u{font-family:"Noto Sans TC";font-size:22px;color:var(--faint);margin-left:3px}
+
+  /* party split */
+  .prow{margin-top:30px}
+  .prow .pn{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .prow .pn .dot{width:18px;height:18px;border-radius:5px}
+  .prow .pn .nm{font-family:"Noto Sans TC";font-weight:700;color:var(--ink-strong);font-size:32px}
+  .prow .pn .meta{margin-left:auto;font-size:24px;color:var(--faint)}
+  .prow .pn .meta b{color:var(--ink-strong);font-family:"Cormorant",serif;font-size:30px}
+  .split{display:flex;height:30px;border-radius:999px;overflow:hidden;background:var(--soft)}
+  .split span{height:100%}
+  .legend{display:flex;gap:34px;margin-top:40px;color:#555;font-size:24px}
+  .legend .k{display:flex;align-items:center;gap:10px}
+  .legend .k i{width:18px;height:18px;border-radius:4px;display:inline-block}
+
+  /* cross-party donor cards */
+  .donor{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--shu);
+    padding:30px 34px;margin-top:30px}
+  .donor .dn{font-family:"Noto Sans TC";font-weight:700;color:var(--ink-strong);font-size:36px}
+  .donor .dm{font-size:25px;color:#666;margin-top:8px}
+  .donor .dm b{color:var(--shu);font-weight:700}
+  .donor .dots{display:flex;gap:10px;margin-top:18px}
+  .donor .dots i{width:30px;height:30px;border-radius:999px}
+
+  /* level ladder (card 5) */
+  .ladder{margin-top:48px;display:flex;flex-direction:column;gap:18px}
+  .lv{display:flex;align-items:center;gap:24px;background:var(--panel);border:1px solid var(--line);
+    padding:24px 30px;border-radius:6px}
+  .lv .lvt{font-family:"Noto Serif TC",serif;font-weight:600;color:var(--ink-strong);font-size:34px;width:200px}
+  .lv .lvd{font-size:25px;color:#555}
+  .lv.acc{border-left:5px solid var(--shu)}
+
+  /* CTA features */
+  .feat{margin-top:46px;display:flex;flex-direction:column;gap:22px}
+  .feat .f{display:flex;gap:20px;align-items:baseline;font-size:30px;color:var(--ink)}
+  .feat .f .n{font-family:"Cormorant",serif;font-style:italic;color:var(--accent);font-size:34px;width:40px}
+  .feat .f b{color:var(--ink-strong);font-weight:700}
+  .url{font-family:"DM Sans";font-size:34px;color:var(--shu);font-weight:500;margin-top:40px;letter-spacing:.02em}
+
+  /* cover map */
+  .covermap{position:absolute;right:-10px;bottom:70px;height:660px;opacity:.96}
+  .covermap .county{stroke:#fff;stroke-width:.8}
+  .coverwrap{position:relative;flex:1}
+</style>
+</head>
+<body>
+
+<!-- 1 封面 -->
+<div class="card" id="card1">
+  <div class="hd"><span class="brand">金錢的地理學<span class="zh">政治獻金與牠們的產地</span></span><span>1 / 6</span></div>
+  <div class="coverwrap">
+    <h1 style="font-size:96px;margin-top:80px">跟著錢，<br>走進選舉</h1>
+    <div class="lead" style="max-width:500px;font-size:35px">2018–2024 <b>四屆</b>選舉政治獻金，<br>攤開在一張地圖上——<br>跟著錢，看見權力的形狀。</div>
+    <svg class="covermap" id="cmap" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="ft"><span>資料：監察院・中選會・財政部公開資料</span><span><b>yunching0513.github.io/tw-campaign-finance-map</b></span></div>
+</div>
+
+<!-- 2 產業 -->
+<div class="card" id="card2">
+  <div class="hd"><span class="brand">政治獻金與牠們的產地</span><span>2 / 6</span></div>
+  <h1>錢，從哪個<br>產業來？</h1>
+  <div class="lead">四屆合計，企業捐贈最多的產業——<b>建商與營造合計逾 14 億</b>，土地利益的身影無所不在。</div>
+  <div class="bars">
+    <div class="bar"><span class="nm">製造工業</span><span class="tk"><span class="fl" style="width:100%;background:#6E7F8C"></span></span><span class="vl">10.1<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">批發貿易</span><span class="tk"><span class="fl" style="width:98%;background:#B59A3E"></span></span><span class="vl">9.9<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">建商地產</span><span class="tk"><span class="fl" style="width:94%;background:#A6392C"></span></span><span class="vl">9.5<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">金融投資</span><span class="tk"><span class="fl" style="width:50%;background:#2B5C9E"></span></span><span class="vl">5.1<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">營造工程</span><span class="tk"><span class="fl" style="width:48%;background:#C58A3E"></span></span><span class="vl">4.8<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">科技電子</span><span class="tk"><span class="fl" style="width:25%;background:#1EA0A6"></span></span><span class="vl">2.5<span class="u">億</span></span></div>
+    <div class="bar"><span class="nm">媒體廣告</span><span class="tk"><span class="fl" style="width:13%;background:#8C5A8C"></span></span><span class="vl">1.3<span class="u">億</span></span></div>
+  </div>
+  <div class="ft"><span>產業別以財政部營業稅籍主要行業對應</span><span><b>2018–2024 四屆合計</b></span></div>
+</div>
+
+<!-- 3 大黨 vs 小黨 -->
+<div class="card" id="card3">
+  <div class="hd"><span class="brand">政治獻金與牠們的產地</span><span>3 / 6</span></div>
+  <h1 class="sm">誰靠企業，<br>誰靠個人？</h1>
+  <div class="lead">兩大黨企業捐贈占比 <b>逾三成半</b>；小黨幾乎全靠個人——民眾黨個人占 <b>83%</b>、時代力量企業僅 <b>10%</b>。</div>
+  <div class="legend"><span class="k"><i style="background:#A6392C"></i>個人</span><span class="k"><i style="background:#2E6B4E"></i>企業（營利事業）</span><span class="k"><i style="background:#C9CFD4"></i>其他</span></div>
+  <div style="margin-top:6px">
+    <div class="prow"><div class="pn"><span class="dot" style="background:#3A7D44"></span><span class="nm">民進黨</span><span class="meta">總 <b>57.5</b> 億</span></div><div class="split"><span style="width:60%;background:#A6392C"></span><span style="width:36%;background:#2E6B4E"></span><span style="width:4%;background:#C9CFD4"></span></div></div>
+    <div class="prow"><div class="pn"><span class="dot" style="background:#2B5C9E"></span><span class="nm">國民黨</span><span class="meta">總 <b>44.5</b> 億</span></div><div class="split"><span style="width:60%;background:#A6392C"></span><span style="width:37%;background:#2E6B4E"></span><span style="width:3%;background:#C9CFD4"></span></div></div>
+    <div class="prow"><div class="pn"><span class="dot" style="background:#1EA0A6"></span><span class="nm">民眾黨</span><span class="meta">總 <b>5.2</b> 億</span></div><div class="split"><span style="width:83%;background:#A6392C"></span><span style="width:13%;background:#2E6B4E"></span><span style="width:4%;background:#C9CFD4"></span></div></div>
+    <div class="prow"><div class="pn"><span class="dot" style="background:#C19A1E"></span><span class="nm">時代力量</span><span class="meta">總 <b>1.4</b> 億</span></div><div class="split"><span style="width:65%;background:#A6392C"></span><span style="width:10%;background:#2E6B4E"></span><span style="width:25%;background:#C9CFD4"></span></div></div>
+    <div class="prow"><div class="pn"><span class="dot" style="background:#8C5A8C"></span><span class="nm">台灣基進</span><span class="meta">總 <b>4,639</b> 萬</span></div><div class="split"><span style="width:64%;background:#A6392C"></span><span style="width:15%;background:#2E6B4E"></span><span style="width:21%;background:#C9CFD4"></span></div></div>
+  </div>
+  <div class="ft"><span>四屆候選人募款合計（不含未標示）</span><span><b>政黨比較</b></span></div>
+</div>
+
+<!-- 4 跨黨押寶 -->
+<div class="card" id="card4">
+  <div class="hd"><span class="brand">政治獻金與牠們的產地</span><span>4 / 6</span></div>
+  <h1 class="sm">有些金主，<br>每一黨都押</h1>
+  <div class="lead">同一家公司，跨越政黨光譜捐給藍綠白各色候選人——這是政商關係最赤裸的訊號。</div>
+  <div class="donor"><div class="dn">竣達實業</div><div class="dm">捐 <b>29</b> 位候選人 · 橫跨 <b>6 黨</b></div><div class="dots"><i style="background:#3A7D44"></i><i style="background:#2B5C9E"></i><i style="background:#1EA0A6"></i><i style="background:#C19A1E"></i><i style="background:#9a9a9a"></i><i style="background:#A7A29A"></i></div></div>
+  <div class="donor"><div class="dn">基隆第一信用合作社</div><div class="dm">捐 <b>28</b> 位候選人 · 橫跨 <b>6 黨</b></div><div class="dots"><i style="background:#3A7D44"></i><i style="background:#2B5C9E"></i><i style="background:#C19A1E"></i><i style="background:#C56B2C"></i><i style="background:#9a9a9a"></i><i style="background:#A7A29A"></i></div></div>
+  <div class="donor"><div class="dn">保強建設開發</div><div class="dm">捐 <b>25</b> 位候選人 · 橫跨 <b>5 黨</b> <span style="color:#A6392C">· 建商地產</span></div><div class="dots"><i style="background:#3A7D44"></i><i style="background:#2B5C9E"></i><i style="background:#1EA0A6"></i><i style="background:#9a9a9a"></i><i style="background:#A7A29A"></i></div></div>
+  <div class="ft"><span>金主透視 · 企業跨選區捐贈網絡</span><span><b>2018–2024</b></span></div>
+</div>
+
+<!-- 5 建商布局 -->
+<div class="card" id="card5">
+  <div class="hd"><span class="brand">政治獻金與牠們的產地</span><span>5 / 6</span></div>
+  <h1 class="sm">一家建商的<br>政治版圖</h1>
+  <div class="lead"><b>宏錦建設</b>四屆捐了 <b>42 位</b>候選人、合計 <b>638 萬</b>，從地方議員一路押到總統。</div>
+  <div class="ladder">
+    <div class="lv acc"><span class="lvt">總統</span><span class="lvd">最高層級的政治獻金也有它的身影</span></div>
+    <div class="lv acc"><span class="lvt">立法委員</span><span class="lvd">跨多個縣市的立委候選人</span></div>
+    <div class="lv acc"><span class="lvt">縣市長</span><span class="lvd">地方首長選舉</span></div>
+    <div class="lv acc"><span class="lvt">縣市議員</span><span class="lvd">最在地的民意代表</span></div>
+  </div>
+  <div class="lead" style="margin-top:40px;font-size:27px;color:#777">建設・不動產業者的捐贈，往往橫跨各層級選舉——土地開發的利害關係，與政治權力緊密相連。</div>
+  <div class="ft"><span>公司產業以財政部行業別精準分類</span><span><b>金主透視</b></span></div>
+</div>
+
+<!-- 6 CTA -->
+<div class="card" id="card6">
+  <div class="hd"><span class="brand">政治獻金與牠們的產地</span><span>6 / 6</span></div>
+  <h1 class="sm">自己查<br>一查</h1>
+  <div class="lead">四大功能，一個透明的金流地圖。資料公開、僅供監督，<b>無意影響選舉</b>。</div>
+  <div class="feat">
+    <div class="f"><span class="n">01</span><span><b>地圖</b>　各縣市・各職位・各年度的捐贈規模與來源</span></div>
+    <div class="f"><span class="n">02</span><span><b>金主透視</b>　企業跨選區捐贈網絡、各縣市排名、產業分類</span></div>
+    <div class="f"><span class="n">03</span><span><b>政黨比較</b>　各黨募款規模與個人 / 企業結構</span></div>
+    <div class="f"><span class="n">04</span><span><b>產業比較</b>　哪個產業捐最多</span></div>
+    <div class="f"><span class="n">05</span><span><b>搜尋</b>　輸入候選人或公司，看完整金流</span></div>
+  </div>
+  <div class="url">yunching0513.github.io/tw-campaign-finance-map</div>
+  <div class="ft"><span>資料：監察院政治獻金平臺・中選會・財政部</span><span>開發 <b>吳昀慶 Yun Ching Wu</b></span></div>
+</div>
+
+<script src="map_data.js"></script>
+<script>
+  const D=window.MAP_DATA, svg=document.getElementById('cmap');
+  if(D&&svg){
+    svg.setAttribute('viewBox', D.meta.viewbox.join(' '));
+    const key='mayor_2022';
+    const vals=D.counties.map(c=>(c.layers[key]||{}).total||0).filter(v=>v>0);
+    const lo=Math.log(Math.min(...vals)+1), hi=Math.log(Math.max(...vals)+1);
+    const fill=t=>{const a=[243,231,227],b=[166,57,44];
+      const c=a.map((x,i)=>Math.round(x+(b[i]-x)*Math.pow(Math.max(t,0),.85)));return `rgb(${c.join(',')})`;};
+    D.counties.forEach(c=>{ if(!c.path) return;
+      const tv=(c.layers[key]||{}).total||0, t=tv>0?(Math.log(tv+1)-lo)/(hi-lo):0;
+      const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d',c.path); p.setAttribute('class','county'); p.setAttribute('fill',tv>0?fill(t):'#ECECEC');
+      svg.appendChild(p);
+    });
+  }
+  document.title='thread-ready';
+</script>
+</body>
+</html>
