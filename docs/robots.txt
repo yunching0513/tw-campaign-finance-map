@@ -39,6 +39,7 @@ Disallow: /
 User-agent: *
 Crawl-delay: 10
 Disallow: /map_data.js
+Disallow: /companies.js
 Disallow: /candidates.js
 Disallow: /og.html
 Disallow: /thread.html

@@ -858,6 +858,7 @@ def main():
         _addpp("全部", rec)
         _addpp(f"{rec['office']}·{rec['year']}", rec)
 
+    # core（隨地圖立即載入）：不含 companies；companies/candidates 改為前端延遲載入。
     payload = {
         "meta": {"viewbox": list(viewbox), "donor_types": DONOR_TYPES,
                  "offices": offices,
@@ -865,7 +866,6 @@ def main():
         "national": national,
         "counties": sorted(counties.values(),
                            key=lambda c: -c["layers"].get(default_key, {}).get("total", 0)),
-        "companies": companies,
         "party_summary": party_summary,
         "party_profile": pprof,
         "industry_totals": build_industry_totals(norm),
@@ -877,10 +877,15 @@ def main():
                    encoding="utf-8")
     print(f"\n已輸出 {out}  ({out.stat().st_size/1024:.0f} KB)")
 
+    comp_out = out.parent / "companies.js"
+    comp_out.write_text("window.COMPANIES_DATA = " + json.dumps(companies, ensure_ascii=False) + ";\n",
+                        encoding="utf-8")
+    print(f"已輸出 {comp_out}  ({comp_out.stat().st_size/1024:.0f} KB)  [延遲載入]")
+
     cand_out = out.parent / "candidates.js"
     cand_out.write_text("window.CAND_DATA = " + json.dumps(candidates, ensure_ascii=False) + ";\n",
                         encoding="utf-8")
-    print(f"已輸出 {cand_out}  ({cand_out.stat().st_size/1024:.0f} KB)")
+    print(f"已輸出 {cand_out}  ({cand_out.stat().st_size/1024:.0f} KB)  [延遲載入]")
     print("地圖職位：" + " / ".join(f"{o['label']}{o['years']}" for o in offices))
 
 
