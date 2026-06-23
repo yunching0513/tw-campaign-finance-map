@@ -1,0 +1,44 @@
+# 本站為台灣政府公開資料（監察院・中選會・財政部）之再整理，
+# 僅供台灣公眾研究與監督。謝絕 AI 訓練與大量抓取。
+
+# --- AI 訓練／生成式爬蟲：全面謝絕 ---
+User-agent: GPTBot
+Disallow: /
+User-agent: ChatGPT-User
+Disallow: /
+User-agent: OAI-SearchBot
+Disallow: /
+User-agent: ClaudeBot
+Disallow: /
+User-agent: Claude-Web
+Disallow: /
+User-agent: anthropic-ai
+Disallow: /
+User-agent: CCBot
+Disallow: /
+User-agent: Google-Extended
+Disallow: /
+User-agent: Applebot-Extended
+Disallow: /
+User-agent: PerplexityBot
+Disallow: /
+User-agent: Bytespider
+Disallow: /
+User-agent: Amazonbot
+Disallow: /
+User-agent: meta-externalagent
+Disallow: /
+User-agent: cohere-ai
+Disallow: /
+User-agent: Diffbot
+Disallow: /
+User-agent: Omgilibot
+Disallow: /
+
+# --- 其餘爬蟲：放慢、且勿抓取大型資料檔 ---
+User-agent: *
+Crawl-delay: 10
+Disallow: /map_data.js
+Disallow: /candidates.js
+Disallow: /og.html
+Disallow: /thread.html

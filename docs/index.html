@@ -306,6 +306,39 @@
 </style>
 </head>
 <body>
+<!-- 台灣軟閘：非台灣 IP 顯示提示（軟性、可繞過；fail-open） -->
+<div id="geogate" hidden style="position:fixed;inset:0;z-index:9999;background:#F2F2F2;
+  display:flex;align-items:center;justify-content:center;padding:40px;
+  font-family:'Noto Sans TC',sans-serif">
+  <div style="max-width:580px;text-align:center">
+    <div style="font-family:'Cormorant',serif;font-style:italic;color:#A6392C;font-size:26px;letter-spacing:.06em">Taiwan only</div>
+    <h2 style="font-family:'Noto Serif TC',serif;font-weight:600;font-size:34px;color:#000;margin:16px 0 20px;letter-spacing:.02em">本站主要服務台灣使用者</h2>
+    <p style="color:#555;font-size:16px;line-height:2.1">本平臺彙整<b>台灣政府公開資料</b>（監察院政治獻金公開查閱平臺・中央選舉委員會・財政部），<br>僅供台灣公眾<b>研究與監督</b>之用。<br>系統偵測到您目前可能不在台灣，故暫不提供瀏覽。</p>
+    <p style="margin-top:26px"><a id="geocontinue" href="#" style="color:#9a9a9a;font-size:13px;letter-spacing:.04em">我人在台灣，仍要繼續瀏覽</a></p>
+  </div>
+</div>
+<script>
+(function(){
+  try{
+    if(sessionStorage.getItem('geo_ok')==='1') return;
+    var ctrl=new AbortController(), to=setTimeout(function(){ctrl.abort();},2500); // 超時 fail-open
+    fetch('https://api.country.is/',{signal:ctrl.signal,cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(d){ clearTimeout(to);
+        var cc=(d&&d.country)||'';
+        if(cc && cc!=='TW'){ var g=document.getElementById('geogate');
+          if(g){ g.hidden=false; document.documentElement.style.overflow='hidden'; } }
+        else { sessionStorage.setItem('geo_ok','1'); }
+      }).catch(function(){ /* 失敗就放行 */ });
+    document.addEventListener('click',function(e){
+      if(e.target&&e.target.id==='geocontinue'){ e.preventDefault();
+        sessionStorage.setItem('geo_ok','1');
+        var g=document.getElementById('geogate'); if(g) g.hidden=true;
+        document.documentElement.style.overflow=''; }
+    });
+  }catch(e){}
+})();
+</script>
 <div class="wrap">
   <p class="eyebrow">金錢的地理學<span class="en">Follow the Money · Taiwan</span></p>
   <h1>政治獻金與牠們的產地</h1>
