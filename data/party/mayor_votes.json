@@ -1,0 +1,660 @@
+[
+{
+"name": "張家豪",
+"district": "臺北市",
+"year": 2022,
+"votes": 2367,
+"elected": false
+},
+{
+"name": "王文娟",
+"district": "臺北市",
+"year": 2022,
+"votes": 451,
+"elected": false
+},
+{
+"name": "鄭匡宇",
+"district": "臺北市",
+"year": 2022,
+"votes": 386,
+"elected": false
+},
+{
+"name": "黃聖峰",
+"district": "臺北市",
+"year": 2022,
+"votes": 256,
+"elected": false
+},
+{
+"name": "童文薰",
+"district": "臺北市",
+"year": 2022,
+"votes": 2425,
+"elected": false
+},
+{
+"name": "蔣萬安",
+"district": "臺北市",
+"year": 2022,
+"votes": 575590,
+"elected": true
+},
+{
+"name": "蘇煥智",
+"district": "臺北市",
+"year": 2022,
+"votes": 1851,
+"elected": false
+},
+{
+"name": "黃珊珊",
+"district": "臺北市",
+"year": 2022,
+"votes": 342141,
+"elected": false
+},
+{
+"name": "施奉先",
+"district": "臺北市",
+"year": 2022,
+"votes": 383,
+"elected": false
+},
+{
+"name": "唐新民",
+"district": "臺北市",
+"year": 2022,
+"votes": 316,
+"elected": false
+},
+{
+"name": "謝立康",
+"district": "臺北市",
+"year": 2022,
+"votes": 227,
+"elected": false
+},
+{
+"name": "陳時中",
+"district": "臺北市",
+"year": 2022,
+"votes": 434558,
+"elected": false
+},
+{
+"name": "林佳龍",
+"district": "新北市",
+"year": 2022,
+"votes": 693976,
+"elected": false
+},
+{
+"name": "侯友宜",
+"district": "新北市",
+"year": 2022,
+"votes": 1152555,
+"elected": true
+},
+{
+"name": "張善政",
+"district": "桃園市",
+"year": 2022,
+"votes": 557572,
+"elected": true
+},
+{
+"name": "賴香伶",
+"district": "桃園市",
+"year": 2022,
+"votes": 54926,
+"elected": false
+},
+{
+"name": "鄭運鵬",
+"district": "桃園市",
+"year": 2022,
+"votes": 428983,
+"elected": false
+},
+{
+"name": "鄭寶清",
+"district": "桃園市",
+"year": 2022,
+"votes": 30282,
+"elected": false
+},
+{
+"name": "陳美妃",
+"district": "臺中市",
+"year": 2022,
+"votes": 23140,
+"elected": false
+},
+{
+"name": "蔡其昌",
+"district": "臺中市",
+"year": 2022,
+"votes": 524224,
+"elected": false
+},
+{
+"name": "盧秀燕",
+"district": "臺中市",
+"year": 2022,
+"votes": 799107,
+"elected": true
+},
+{
+"name": "許忠信",
+"district": "臺南市",
+"year": 2022,
+"votes": 38697,
+"elected": false
+},
+{
+"name": "林義豐",
+"district": "臺南市",
+"year": 2022,
+"votes": 24606,
+"elected": false
+},
+{
+"name": "謝龍介",
+"district": "臺南市",
+"year": 2022,
+"votes": 387731,
+"elected": false
+},
+{
+"name": "吳炳輝",
+"district": "臺南市",
+"year": 2022,
+"votes": 3956,
+"elected": false
+},
+{
+"name": "黃偉哲",
+"district": "臺南市",
+"year": 2022,
+"votes": 433684,
+"elected": true
+},
+{
+"name": "鄭宇翔",
+"district": "高雄市",
+"year": 2022,
+"votes": 8394,
+"elected": false
+},
+{
+"name": "曾尹儷",
+"district": "高雄市",
+"year": 2022,
+"votes": 14585,
+"elected": false
+},
+{
+"name": "柯志恩",
+"district": "高雄市",
+"year": 2022,
+"votes": 529607,
+"elected": false
+},
+{
+"name": "陳其邁",
+"district": "高雄市",
+"year": 2022,
+"votes": 766147,
+"elected": true
+},
+{
+"name": "謝國樑",
+"district": "基隆市",
+"year": 2022,
+"votes": 96784,
+"elected": true
+},
+{
+"name": "陳薇仲",
+"district": "基隆市",
+"year": 2022,
+"votes": 12000,
+"elected": false
+},
+{
+"name": "蔡適應",
+"district": "基隆市",
+"year": 2022,
+"votes": 71354,
+"elected": false
+},
+{
+"name": "曾國民",
+"district": "基隆市",
+"year": 2022,
+"votes": 619,
+"elected": false
+},
+{
+"name": "黃希賢",
+"district": "基隆市",
+"year": 2022,
+"votes": 2136,
+"elected": false
+},
+{
+"name": "林姿妙",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 119421,
+"elected": true
+},
+{
+"name": "朱振東",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 919,
+"elected": false
+},
+{
+"name": "許鋐哲",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 1036,
+"elected": false
+},
+{
+"name": "陳秋境",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 714,
+"elected": false
+},
+{
+"name": "江聰淵",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 96779,
+"elected": false
+},
+{
+"name": "陳琬惠",
+"district": "宜蘭縣",
+"year": 2022,
+"votes": 16412,
+"elected": false
+},
+{
+"name": "黃秀龍",
+"district": "新竹縣",
+"year": 2022,
+"votes": 3403,
+"elected": false
+},
+{
+"name": "范振揆",
+"district": "新竹縣",
+"year": 2022,
+"votes": 4874,
+"elected": false
+},
+{
+"name": "周江-{杰}-",
+"district": "新竹縣",
+"year": 2022,
+"votes": 83683,
+"elected": false
+},
+{
+"name": "楊文科",
+"district": "新竹縣",
+"year": 2022,
+"votes": 163662,
+"elected": true
+},
+{
+"name": "劉復嵐",
+"district": "新竹縣",
+"year": 2022,
+"votes": 2683,
+"elected": false
+},
+{
+"name": "黃源甫",
+"district": "新竹市",
+"year": 2022,
+"votes": 1049,
+"elected": false
+},
+{
+"name": "龔偉綸",
+"district": "新竹市",
+"year": 2022,
+"votes": 508,
+"elected": false
+},
+{
+"name": "林耕仁",
+"district": "新竹市",
+"year": 2022,
+"votes": 39391,
+"elected": false
+},
+{
+"name": "李驥羣",
+"district": "新竹市",
+"year": 2022,
+"votes": 1108,
+"elected": false
+},
+{
+"name": "沈慧虹",
+"district": "新竹市",
+"year": 2022,
+"votes": 77764,
+"elected": false
+},
+{
+"name": "高虹安",
+"district": "新竹市",
+"year": 2022,
+"votes": 98121,
+"elected": true
+},
+{
+"name": "鍾東錦",
+"district": "苗栗縣",
+"year": 2022,
+"votes": 124603,
+"elected": true
+},
+{
+"name": "謝福弘",
+"district": "苗栗縣",
+"year": 2022,
+"votes": 32026,
+"elected": false
+},
+{
+"name": "吳盛聖",
+"district": "苗栗縣",
+"year": 2022,
+"votes": 4864,
+"elected": false
+},
+{
+"name": "徐定禎",
+"district": "苗栗縣",
+"year": 2022,
+"votes": 91260,
+"elected": false
+},
+{
+"name": "宋國鼎",
+"district": "苗栗縣",
+"year": 2022,
+"votes": 39347,
+"elected": false
+},
+{
+"name": "王惠美",
+"district": "彰化縣",
+"year": 2022,
+"votes": 369133,
+"elected": true
+},
+{
+"name": "黃秀芳",
+"district": "彰化縣",
+"year": 2022,
+"votes": 272817,
+"elected": false
+},
+{
+"name": "蕭仁正",
+"district": "彰化縣",
+"year": 2022,
+"votes": 8474,
+"elected": false
+},
+{
+"name": "蔡培慧",
+"district": "南投縣",
+"year": 2022,
+"votes": 117993,
+"elected": false
+},
+{
+"name": "許淑華",
+"district": "南投縣",
+"year": 2022,
+"votes": 154256,
+"elected": true
+},
+{
+"name": "王永慶",
+"district": "南投縣",
+"year": 2022,
+"votes": 3250,
+"elected": false
+},
+{
+"name": "張麗善",
+"district": "雲林縣",
+"year": 2022,
+"votes": 207519,
+"elected": true
+},
+{
+"name": "劉建國",
+"district": "雲林縣",
+"year": 2022,
+"votes": 152620,
+"elected": false
+},
+{
+"name": "林佳瑜",
+"district": "雲林縣",
+"year": 2022,
+"votes": 6694,
+"elected": false
+},
+{
+"name": "王育敏",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 101517,
+"elected": false
+},
+{
+"name": "翁章梁",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 171777,
+"elected": true
+},
+{
+"name": "黃敏惠",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 59874,
+"elected": true
+},
+{
+"name": "李俊俋",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 32790,
+"elected": false
+},
+{
+"name": "陳泰山",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 246,
+"elected": false
+},
+{
+"name": "黃宏成台灣阿成世界偉人財神總統",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 535,
+"elected": false
+},
+{
+"name": "鄭凱升",
+"district": "嘉義縣",
+"year": 2022,
+"votes": 368,
+"elected": false
+},
+{
+"name": "詹智鈞",
+"district": "屏東縣",
+"year": 2022,
+"votes": 19156,
+"elected": false
+},
+{
+"name": "蘇清泉",
+"district": "屏東縣",
+"year": 2022,
+"votes": 206460,
+"elected": false
+},
+{
+"name": "周春米",
+"district": "屏東縣",
+"year": 2022,
+"votes": 217537,
+"elected": true
+},
+{
+"name": "徐榛蔚",
+"district": "花蓮縣",
+"year": 2022,
+"votes": 96645,
+"elected": true
+},
+{
+"name": "黃師鵬",
+"district": "花蓮縣",
+"year": 2022,
+"votes": 4817,
+"elected": false
+},
+{
+"name": "谷辣斯·尤達卡",
+"district": "花蓮縣",
+"year": 2022,
+"votes": 47845,
+"elected": false
+},
+{
+"name": "陳長宏",
+"district": "臺東縣",
+"year": 2022,
+"votes": 2383,
+"elected": false
+},
+{
+"name": "饒慶鈴",
+"district": "臺東縣",
+"year": 2022,
+"votes": 68661,
+"elected": true
+},
+{
+"name": "劉櫂豪",
+"district": "臺東縣",
+"year": 2022,
+"votes": 41104,
+"elected": false
+},
+{
+"name": "陳光復",
+"district": "澎湖縣",
+"year": 2022,
+"votes": 18777,
+"elected": true
+},
+{
+"name": "賴峰偉",
+"district": "澎湖縣",
+"year": 2022,
+"votes": 17081,
+"elected": false
+},
+{
+"name": "葉竹林",
+"district": "澎湖縣",
+"year": 2022,
+"votes": 15384,
+"elected": false
+},
+{
+"name": "李應文",
+"district": "金門縣",
+"year": 2022,
+"votes": 3459,
+"elected": false
+},
+{
+"name": "朱紀瑋",
+"district": "金門縣",
+"year": 2022,
+"votes": 174,
+"elected": false
+},
+{
+"name": "林志錦",
+"district": "金門縣",
+"year": 2022,
+"votes": 141,
+"elected": false
+},
+{
+"name": "楊鎮浯",
+"district": "金門縣",
+"year": 2022,
+"votes": 19340,
+"elected": false
+},
+{
+"name": "陳福海",
+"district": "金門縣",
+"year": 2022,
+"votes": 23248,
+"elected": true
+},
+{
+"name": "洪志-{恒}-",
+"district": "金門縣",
+"year": 2022,
+"votes": 752,
+"elected": false
+},
+{
+"name": "李問",
+"district": "連江縣",
+"year": 2022,
+"votes": 586,
+"elected": false
+},
+{
+"name": "曹爾元",
+"district": "連江縣",
+"year": 2022,
+"votes": 3582,
+"elected": false
+},
+{
+"name": "王忠銘",
+"district": "連江縣",
+"year": 2022,
+"votes": 4337,
+"elected": true
+}
+]

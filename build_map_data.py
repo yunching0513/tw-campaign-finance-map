@@ -496,6 +496,20 @@ def load_outcomes(data_dir: Path) -> OutcomeMap:
         for rec in json.loads(lp.read_text(encoding="utf-8")):
             om.add(rec["name"], rec["district"], rec["year"],
                    rec.get("elected", False), rec.get("votes"))
+    # 縣市長得票數（維基，目前僅 2022 該頁含表）：併入既有結果條目，不動當選旗標
+    mv = cache / "mayor_votes.json"
+    if mv.exists():
+        upd = 0
+        for rec in json.loads(mv.read_text(encoding="utf-8")):
+            ent = om.lookup(rec["name"], rec["district"], rec["year"])
+            if ent and ent.get("votes") is None:
+                ent["votes"] = rec["votes"]
+                upd += 1
+            elif not ent:
+                om.add(rec["name"], rec["district"], rec["year"],
+                       rec.get("elected", False), rec["votes"])
+                upd += 1
+        print(f"  縣市長得票數補充（維基）：{upd} 筆")
     print(f"  選舉結果（當選/票數）：{len(om.exact)} 筆")
     return om
 
