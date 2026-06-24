@@ -360,6 +360,41 @@
   .fair-table td{padding:5px 6px;border-bottom:1px solid var(--line)}
   .fair-table .fv2{font-family:var(--latin);font-size:14px;color:var(--ink-strong)}
 
+  /* ===== 注音守門員 ===== */
+  #gateOverlay{position:fixed;inset:0;z-index:9999;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  #gateOverlay[hidden]{display:none}
+  .gate-card{background:var(--panel);border:1px solid var(--line);
+    max-width:520px;width:100%;padding:36px 44px 38px}
+  .gate-ey{font-family:var(--body);font-size:10.5px;letter-spacing:var(--ls-wide);
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 12px}
+  .gate-ti{font-family:var(--serif);font-weight:600;font-size:21px;
+    color:var(--ink-strong);margin:0 0 9px;letter-spacing:.02em;line-height:1.3}
+  .gate-de{font-size:13px;color:#666;line-height:1.75;margin:0 0 22px}
+  .gate-q{margin:0 0 18px}
+  .gate-ql{font-family:var(--serif);font-weight:500;font-size:14.5px;
+    color:var(--ink-strong);margin:0 0 8px}
+  .gate-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .gate-opt{display:flex;align-items:center;gap:7px;padding:8px 10px;
+    border:1px solid var(--line);cursor:pointer;font-size:13.5px;
+    font-family:var(--gothic);background:var(--panel);
+    transition:border-color .12s,background .12s;user-select:none;letter-spacing:.02em}
+  .gate-opt:hover{border-color:var(--accent);background:var(--panel-soft)}
+  .gate-opt.sel{border-color:var(--shu-solid);background:var(--shu-soft)}
+  .gate-rb{width:13px;height:13px;border-radius:50%;border:1.5px solid #bbb;
+    flex-shrink:0;transition:border-color .12s,background .12s}
+  .gate-opt.sel .gate-rb{border-color:var(--shu-solid);background:var(--shu-solid)}
+  .gate-sub{width:100%;padding:11px;background:var(--ink-strong);color:#fff;
+    border:none;cursor:pointer;margin-top:16px;font-family:var(--body);
+    font-size:13px;letter-spacing:var(--ls-wide);font-weight:500}
+  .gate-sub:hover{background:var(--shu-solid)}
+  .gate-sub:disabled{opacity:.4;cursor:default}
+  .gate-msg{margin-top:10px;font-size:12.5px;text-align:center;
+    letter-spacing:.02em;color:var(--shu-solid)}
+  .gate-msg.ok{color:var(--midori-solid)}
+  @media(max-width:480px){.gate-card{padding:22px 18px 26px}
+    .gate-opts{grid-template-columns:1fr}}
+
   /* ===== 小資當選人 ===== */
   #tfList{margin-top:8px}
   .tf-row{display:grid; grid-template-columns:30px 1.6fr 2.4fr; align-items:center;
@@ -404,6 +439,16 @@
 </style>
 </head>
 <body>
+<div id="gateOverlay">
+  <div class="gate-card">
+    <p class="gate-ey">身份驗證 · Identity Check</p>
+    <h2 class="gate-ti">台灣注音符號小測驗</h2>
+    <p class="gate-de">本站資料涉及台灣地方選舉。請先回答以下 3 道注音符號（ㄅㄆㄇㄈ）題目，確認您熟悉台灣注音輸入法。<br>通過後本次瀏覽不再詢問。</p>
+    <div id="gateQs"></div>
+    <button id="gateBtn" class="gate-sub" disabled>確認送出</button>
+    <div id="gateMsg" class="gate-msg" hidden></div>
+  </div>
+</div>
 <div class="wrap">
   <p class="eyebrow">金錢的地理學<span class="en">Follow the Money · Taiwan</span></p>
   <h1>政治獻金與牠們的產地</h1>
@@ -577,7 +622,7 @@
     <div class="st-title">聲明與理念<span class="en">why this exists</span></div>
     <p>本站所列政治獻金，均為依《政治獻金法》<b>登記在案</b>、依法取得的政治性捐助；列入本站<b>不代表任何不法或負面評價</b>。</p>
     <p>所有資訊源自<b>政府公開資料</b>（監察院政治獻金公開查閱平臺、中央選舉委員會、財政部營業稅籍登記），僅供<b>研究與公共監督</b>等正當用途；本站<b>無意影響任何選舉，亦不為任何候選人或政黨背書</b>。</p>
-    <p>我們相信透明能帶來改變：期望競選經費總額能<b>逐步下降</b>，讓選舉回歸<b>政策論述</b>，而非比拚知名度與行銷投放；也期待競選看板等公共空間資源能被<b>妥善規範與管理</b>。</p>
+    <p>我相信透明能帶來改變：期望競選經費總額能<b>逐步下降</b>，讓選舉回歸<b>政策論述</b>，而非單純比拚知名度與廣告；也期待街景競選看板等公共空間資源能被<b>妥善規範與管理</b>，街道景觀是公共財。</p>
     <p>個人捐贈者之個資多依規定隱碼，敬請<b>勿用於騷擾、徵信或其他不正當目的</b>。資料如有出入，以監察院等主管機關公告為準。</p>
   </section>
 
@@ -599,6 +644,89 @@
 
 <script src="map_data.js"></script>
 <script>
+// ===== 注音守門員 =====
+(function(){
+  const SK='twcfm_v1';
+  const overlay=document.getElementById('gateOverlay');
+  if(localStorage.getItem(SK)){ overlay.hidden=true; return; }
+
+  const POOL=[
+    {q:'「台灣」的注音符號是？',
+     opts:['ㄊㄞˊ ㄨㄢ','ㄊㄞ ㄨㄢˊ','ㄊㄞˊ ㄨㄣ','ㄊㄟˊ ㄨㄢ'],ans:'ㄊㄞˊ ㄨㄢ'},
+    {q:'「選舉」的注音是？',
+     opts:['ㄒㄩㄢˇ ㄐㄩˇ','ㄒㄩㄢ ㄐㄩˇ','ㄒㄩㄣˇ ㄐㄩˇ','ㄒㄧㄢˇ ㄐㄩˇ'],ans:'ㄒㄩㄢˇ ㄐㄩˇ'},
+    {q:'「民主」的注音是？',
+     opts:['ㄇㄧㄣˊ ㄓㄨˇ','ㄇㄧㄣ ㄓㄨˇ','ㄇㄧㄣˊ ㄓㄨ','ㄇㄣˊ ㄓㄨˇ'],ans:'ㄇㄧㄣˊ ㄓㄨˇ'},
+    {q:'「政治」的注音是？',
+     opts:['ㄓㄥˋ ㄓˋ','ㄓㄥ ㄓˋ','ㄓㄥˋ ㄓ','ㄓㄡˋ ㄓˋ'],ans:'ㄓㄥˋ ㄓˋ'},
+    {q:'「投票」的注音是？',
+     opts:['ㄊㄡˊ ㄆㄧㄠˋ','ㄊㄡˊ ㄆㄧㄠ','ㄊㄡ ㄆㄧㄠˋ','ㄊㄡˊ ㄅㄧㄠˋ'],ans:'ㄊㄡˊ ㄆㄧㄠˋ'},
+    {q:'ㄓㄨㄥ ㄏㄨㄚˊ ㄇㄧㄣˊ ㄍㄨㄛˊ 是哪個國家？',
+     opts:['中華民國','中華人民共和國','中國民主聯盟','大清帝國'],ans:'中華民國'},
+    {q:'「獻金」的「獻」注音是？',
+     opts:['ㄒㄧㄢˋ','ㄒㄧㄢˊ','ㄒㄧㄣˋ','ㄒㄩㄢˋ'],ans:'ㄒㄧㄢˋ'},
+    {q:'「縣市長」的注音是？',
+     opts:['ㄒㄧㄢˋ ㄕˋ ㄓㄤˇ','ㄒㄧㄢ ㄕˋ ㄓㄤˇ','ㄒㄧㄢˋ ㄕ ㄓㄤˇ','ㄒㄧㄢˋ ㄕˋ ㄓㄤ'],ans:'ㄒㄧㄢˋ ㄕˋ ㄓㄤˇ'},
+    {q:'注音字母「ㄅ ㄆ ㄇ ㄈ」是哪類聲母？',
+     opts:['唇音','舌尖音','舌根音','喉音'],ans:'唇音'},
+    {q:'「立法委員」的「委」注音是？',
+     opts:['ㄨㄟˇ','ㄨㄟˊ','ㄨㄟˋ','ㄨㄟ'],ans:'ㄨㄟˇ'},
+    {q:'「候選人」的注音是？',
+     opts:['ㄏㄡˋ ㄒㄩㄢˇ ㄖㄣˊ','ㄏㄡ ㄒㄩㄢˇ ㄖㄣˊ','ㄏㄡˋ ㄒㄩㄢ ㄖㄣˊ','ㄏㄡˋ ㄒㄩㄢˇ ㄖㄣ'],ans:'ㄏㄡˋ ㄒㄩㄢˇ ㄖㄣˊ'},
+    {q:'「公民」的注音是？',
+     opts:['ㄍㄨㄥ ㄇㄧㄣˊ','ㄍㄨㄥˊ ㄇㄧㄣˊ','ㄍㄨㄥ ㄇㄧㄣ','ㄍㄨˋ ㄇㄧㄣˊ'],ans:'ㄍㄨㄥ ㄇㄧㄣˊ'},
+  ];
+
+  // 隨機取 3 題，並打亂每題選項順序
+  const qs=[...POOL].sort(()=>Math.random()-.5).slice(0,3)
+    .map(q=>({...q, opts:[...q.opts].sort(()=>Math.random()-.5)}));
+  const sel=new Array(3).fill(null);
+
+  const container=document.getElementById('gateQs');
+  const btn=document.getElementById('gateBtn');
+  const msg=document.getElementById('gateMsg');
+
+  function paint(){
+    container.innerHTML=qs.map((q,qi)=>`
+      <div class="gate-q">
+        <p class="gate-ql">${qi+1}．${q.q}</p>
+        <div class="gate-opts">${q.opts.map(o=>`
+          <label class="gate-opt${sel[qi]===o?' sel':''}">
+            <span class="gate-rb"></span>${o}
+            <input type="radio" name="gq${qi}" value="${o.replace(/"/g,'&quot;')}" style="display:none"${sel[qi]===o?' checked':''}>
+          </label>`).join('')}</div>
+      </div>`).join('');
+
+    container.querySelectorAll('.gate-opt').forEach(lbl=>{
+      lbl.addEventListener('click',()=>{
+        const inp=lbl.querySelector('input');
+        const qi=+inp.name.slice(2);
+        sel[qi]=inp.value;
+        container.querySelectorAll(`[name="${inp.name}"]`).forEach(i=>{
+          i.closest('.gate-opt').classList.toggle('sel',i===inp);
+        });
+        btn.disabled=sel.some(s=>s===null);
+        msg.hidden=true;
+      });
+    });
+  }
+
+  paint();
+
+  btn.addEventListener('click',()=>{
+    const bad=qs.findIndex((q,i)=>sel[i]!==q.ans);
+    if(bad===-1){
+      localStorage.setItem(SK,'1');
+      msg.textContent='驗證通過！'; msg.className='gate-msg ok'; msg.hidden=false;
+      setTimeout(()=>{ overlay.hidden=true; },500);
+    } else {
+      msg.textContent=`第 ${bad+1} 題答錯了，請再試一次 ✕`;
+      msg.className='gate-msg'; msg.hidden=false;
+      sel.fill(null); btn.disabled=true; paint();
+    }
+  });
+})();
+
 const TYPE_COLORS = {
   "個人":"#A6392C","營利事業":"#2E6B4E","政黨":"#b8a98c",
   "人民團體":"#7E8FA0","匿名":"#B9B2A6","其他":"#C9CFD4"
